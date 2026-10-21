@@ -18,7 +18,8 @@
 - Asociar preguntas por curso, enunciado, formato y opciones; el orden aleatorio de las opciones no cambia la identidad.
 - Para ordenar, conectar, clasificar o rellenar, conservar pasos y asociaciones. Un fallo global no implica que cada parte individual sea incorrecta.
 - El usuario autorizó recorrer y resolver el examen completo para inspeccionar todos los formatos, aunque haya fallos.
-- La IA sugiere únicamente: nunca seleccionar opciones ni enviar respuestas automáticamente. Consultar solo al pulsar el botón del examen.
+- La IA sugiere únicamente: nunca seleccionar opciones ni enviar respuestas automáticamente. Consultar al pulsar el botón del examen o, con la opción automática activada explícitamente, al reconocer una pregunta sin respuestas previas ni sugerencia guardada. La opción viene apagada y no reintenta errores automáticamente.
+- Guardar sugerencias de IA separadas del historial de respuestas reales; reutilizarlas adaptando las letras al orden actual. Limpiar historial y sugerencias desde Configuración con confirmación, conservando claves y ajustes.
 - Configuración admite Gemini y OpenRouter. Guardar las API keys solo en el origen privado de la extensión; nunca en el DOM de Platzi, prompts, logs ni exportaciones del historial.
 - Enviar al proveedor elegido solo el curso, enunciado, opciones y asociaciones necesarias para resolver la pregunta actual. Mostrar respuestas breves sin explicaciones y separadas de los resultados confirmados.
 - Mostrar historial y sugerencias en un panel flotante contraíble y redimensionable, fuera de la tarjeta del examen para evitar el recorte de los contenedores de Platzi.

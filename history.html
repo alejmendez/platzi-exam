@@ -26,11 +26,17 @@
       <input id="ai-key" type="password" maxlength="512" autocomplete="off" spellcheck="false" placeholder="Pega tu clave aquí">
       <p id="key-status" class="hint"></p>
       <p class="hint"><a href="https://aistudio.google.com/api-keys?hl=es-419" target="_blank" rel="noopener noreferrer">Generar o administrar mi API key de Gemini</a></p>
+      <label><input id="ai-auto" type="checkbox"> Consultar IA automáticamente en preguntas nuevas</label>
+      <p class="hint">Apagado de forma predeterminada. Al activarlo y guardar, las preguntas sin respuestas previas se envían al proveedor configurado. Puede consumir cuota o saldo. Las sugerencias guardadas se reutilizan; nunca se seleccionan ni se envían respuestas del examen.</p>
       <div class="actions"><button id="ai-save" type="submit">Guardar configuración</button><button id="ai-delete" type="button">Eliminar clave</button></div>
     </form>
     <p id="settings-status" role="status" aria-live="polite"></p>
     <p class="hint">La clave se guarda en este navegador y no se incluye en el JSON del historial. Las sugerencias pueden equivocarse y no se guardan como aciertos confirmados.</p>
     <p class="hint">El acceso gratuito depende del modelo y del cupo de tu cuenta. <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini</a> · <a href="https://openrouter.ai/openrouter/free" target="_blank" rel="noreferrer">OpenRouter Free</a></p>
+    <h2>Limpiar datos</h2>
+    <p class="hint">Elimina todas las preguntas respondidas y las sugerencias de IA guardadas. Conserva tus claves y configuración. Exporta el historial antes si necesitas un respaldo.</p>
+    <button id="history-clear" type="button">Eliminar historial y sugerencias</button>
+    <p id="purge-status" role="status" aria-live="polite"></p>
   </section>
   <script src="core.js"></script><script src="ai.js"></script><script src="history.js"></script><script src="settings.js"></script>
 </body></html>

@@ -5,6 +5,18 @@ const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
 const core = require('../core.js');
 
+test('automático consulta una vez por pregunta y no reintenta errores por cambios del DOM', async () => {
+  const h = await harness(); const calls = [];
+  h.state.sendMessage = async message => { calls.push(message); return message.type === 'ai.cached' ? { ok: true } : { ok: false, error: 'Sin cuota' }; };
+  h.change({ aiSettings: { newValue: { autoSuggest: true } } }); await h.flush();
+  h.observe(); h.observe(); await h.flush();
+  assert.equal(calls.filter(message => message.type === 'ai.suggest').length, 1);
+  assert.equal(calls.find(message => message.type === 'ai.suggest').auto, true);
+  assert.equal(Object.keys(h.data).some(key => key.startsWith('answer:')), false);
+  h.state.question = 'Pregunta siguiente'; h.observe(); await h.flush();
+  assert.equal(calls.filter(message => message.type === 'ai.suggest').length, 2);
+});
+
 test('solo activa las rutas de examen y reconoce los contadores observados', () => {
   assert.equal(core.isExam('/evaluacion/123/'), true);
   assert.equal(core.isExam('/cursos/ingles/'), false);
@@ -104,6 +116,7 @@ async function harness(initial = {}, kind = 'single-choice') {
       const source = new Element(); source.closest = () => node;
       click({ target: source });
     },
+    change: changes => storageChange(changes, 'local'),
     pause: () => storageChange({ enabled: { newValue: false } }, 'local') };
 }
 
@@ -231,11 +244,14 @@ test('captura huecos desde el DOM y conserva la afirmación estable al llenarlos
   assert.equal(record.result, 'correct');
 });
 
-test('la consulta IA es manual, no altera el historial y descarta respuestas de otra pregunta', async () => {
+test('la consulta IA manual no altera el historial y descarta respuestas de otra pregunta', async () => {
   const h = await harness();
   let finish;
   const messages = [];
-  h.state.sendMessage = message => { messages.push(message); return new Promise(resolve => { finish = resolve; }); };
+  h.state.sendMessage = message => {
+    if (message.type === 'ai.cached') return Promise.resolve({ ok: true });
+    messages.push(message); return new Promise(resolve => { finish = resolve; });
+  };
   const button = h.created.find(node => node.tagName === 'button' && node.textContent === 'Sugerir con IA');
   assert.ok(button);
   await button.click({ isTrusted: false });

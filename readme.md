@@ -78,7 +78,7 @@ Desde la carpeta del proyecto, ejecuta en PowerShell:
 
 Se genera `dist/platzi-exam-VERSION.zip`, tomando la versión de `manifest.json`. El paquete contiene únicamente los archivos necesarios de la extensión, con el manifiesto en la raíz. Excluye pruebas, documentación, Git y archivos locales de respaldo; tampoco contiene el historial ni las claves guardadas en Chrome. La carpeta `dist` no se sube a Git.
 
-## Alcance de la versión 0.3
+## Alcance de la versión 0.4
 
 - Solo se inyecta en `https://platzi.com/*` y `https://www.platzi.com/*`. Solo captura en rutas de examen reconocidas y con una pregunta reconocida.
 - Selección múltiple, ordenación con MagnetCards, conexión con MatchCards, rellenar afirmaciones con FillTheGap y clasificación con SwipeCards mediante botones o flechas del teclado. Conserva las secuencias y asociaciones, incluso incompletas.
@@ -108,7 +108,23 @@ Los modelos iniciales son `gemini-3.5-flash-lite` y `openrouter/free`; puedes ca
 
 Las claves se guardan en IndexedDB bajo el origen de la extensión, separado de los scripts que se ejecutan en Platzi y del historial. No se sincronizan ni se incluyen en las exportaciones. **Eliminar clave** quita la clave del proveedor seleccionado. El almacenamiento local no es una caja fuerte cifrada frente a alguien que controle tu perfil de Chrome.
 
-La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmados ni se guardan como respuestas del usuario. Cada consulta es manual, con límite de salida y tiempo de espera, sin reintentos automáticos.
+La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmados ni se guardan como respuestas del usuario. Las consultas tienen límite de salida y tiempo de espera, sin reintentos automáticos.
+
+### Consulta automática y sugerencias guardadas
+
+En **Configuración**, marca **Consultar IA automáticamente en preguntas nuevas** y pulsa **Guardar configuración**. Viene apagada: si no la activas, las consultas siguen siendo manuales. Al activarla se envía la pregunta al proveedor configurado cuando no hay una respuesta elegida anteriormente ni una sugerencia guardada. Una pregunta omitida sin selección no cuenta como respondida. Puede consumir cuota o saldo del proveedor; nunca selecciona opciones ni envía respuestas al examen.
+
+Las consultas correctas del servicio se guardan localmente en una caché independiente del historial. Al reconocer de nuevo el mismo curso, enunciado, formato, opciones y grupos, el panel muestra **Sugerencia guardada** sin una nueva petición, incluso con el modo automático apagado. Si cambia el orden de las opciones, se adapta la letra a su posición actual. **Volver a consultar IA** solicita una nueva sugerencia y reemplaza la guardada. Una sugerencia guardada no significa que Platzi haya confirmado un acierto. Si cambias de proveedor o modelo, puedes usar ese botón para actualizarla.
+
+El modo automático realiza como máximo un intento por aparición de la pregunta; un error se muestra en el panel y no provoca reintentos por cambios del HTML. Puedes reintentar con el botón. Las sugerencias usan el mismo espacio local que el historial, pero no se incluyen en su exportación JSON. No es necesario borrar registros anteriores para usar esta versión.
+
+Desde la versión 0.4.1, al detectar la página recargada se cancela la consulta que pertenecía a la página anterior. Su respuesta se descarta y no bloquea la consulta del nuevo documento. Esto no evita los efectos que una recarga pueda tener sobre los indicadores nativos de Platzi.
+
+Desde la versión 0.4.2, cada consulta espera hasta 90 segundos, en lugar de 25. El panel avisa mientras espera al proveedor. Si se supera ese tiempo, muestra el error y permite reintentar con **Sugerir con IA**, sin reintentos automáticos. Ampliar el límite no garantiza una respuesta: la conexión y la disponibilidad del proveedor pueden seguir impidiendo completar la consulta.
+
+### Limpiar preguntas y sugerencias
+
+En **Configuración → Limpiar datos**, pulsa **Eliminar historial y sugerencias** y confirma. Borra todas las respuestas y sugerencias guardadas, conservando las API keys, la configuración y el estado de captura. Es irreversible: exporta antes el historial si lo necesitas. Una consulta de IA que estuviera pendiente se descarta para no volver a guardar sus resultados tras la limpieza. La pregunta visible no se consulta automáticamente de nuevo como efecto de limpiar; las siguientes preguntas vuelven a evaluarse normalmente.
 
 La versión 0.3.2 separa el panel de los contenedores con recorte de Platzi. Se verificaron en Chrome una sugerencia real de Gemini, contraer/expandir y ampliar/reducir el panel. El tamaño elegido se conserva al actualizar la sugerencia o contraer/expandir durante esa página.
 

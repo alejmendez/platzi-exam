@@ -12,6 +12,7 @@
   let enabled = false, current = null, pending = null, error = "", course = "";
   let route = location.pathname, attempt = crypto.randomUUID(), writes = Promise.resolve();
   const records = new Map();
+  let autoSuggest = false, historyGeneration = 0;
   const text = node => (node?.innerText || node?.textContent || "").trim();
   const all = (root, selector) => Array.from(root.querySelectorAll(selector));
   function questionText(container) {
@@ -96,9 +97,10 @@
       button.disabled = Boolean(current.ai?.loading);
       button.addEventListener("click", requestSuggestion);
       const hint = document.createElement("p"); hint.className = "ai-hint";
-      hint.textContent = current.ai?.provider ? `Sugerencia de ${current.ai.provider} · Puede equivocarse.` : "Envía esta pregunta al proveedor configurado. La IA solo sugiere; tú seleccionas.";
+      hint.textContent = current.ai?.loading ? "Esperando al proveedor de IA. La consulta puede tardar hasta 90 segundos." : current.ai?.provider ? `Sugerencia ${current.ai.cached ? "guardada " : ""}de ${current.ai.provider} · Puede equivocarse.` : "Envía esta pregunta al proveedor configurado. La IA solo sugiere; tú seleccionas.";
       ai.append(button, hint);
       if (current.ai?.error) { const p = document.createElement("p"); p.className = "ai-error"; p.textContent = current.ai.error; ai.append(p); }
+      if (current.ai?.warning) { const p = document.createElement("p"); p.className = "ai-error"; p.textContent = current.ai.warning; ai.append(p); }
       for (const line of current.ai?.lines || []) {
         const row = document.createElement("div"); row.className = "ai-line";
         const label = document.createElement("span"); label.className = "ai-label"; label.textContent = line.label;
@@ -113,23 +115,40 @@
   }
   async function requestSuggestion(event) {
     if (!event.isTrusted || !enabled || !current || current.ai?.loading) return;
+    await suggest(false);
+  }
+  function aiQuestion(owner) {
+    return { kind: owner.kind, course, question: owner.question, options: owner.options, groups: owner.groups };
+  }
+  async function prepareSuggestion() {
+    if (!current || current.kind === "unsupported" || current.aiChecked) return;
+    const owner = current, generation = historyGeneration;
+    owner.aiChecked = true;
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "ai.cached", question: aiQuestion(owner) });
+      if (current !== owner || !enabled || generation !== historyGeneration || owner.ai) return;
+      if (response?.ok && response.lines) { owner.ai = { lines: response.lines, provider: response.provider, cached: true }; renderPanel(); }
+      else if (autoSuggest && !Array.from(records.values()).some(record => record.selected?.length && core.sameQuestion(record, aiQuestion(owner)))) await suggest(true);
+    } catch { /* Manual suggestions remain available if the extension was reloaded. */ }
+  }
+  async function suggest(automatic) {
     const owner = current, path = location.pathname;
+    const generation = historyGeneration;
     owner.ai = { loading: true }; renderPanel();
     try {
-      const response = await chrome.runtime.sendMessage({ type: "ai.suggest", question: {
-        kind: owner.kind, course, question: owner.question, options: owner.options, groups: owner.groups
-      } });
-      if (current !== owner || location.pathname !== path || !enabled) return;
-      owner.ai = response?.ok ? { lines: response.lines, provider: response.provider } : { error: response?.error || "No se pudo consultar. Abre Configuración en la extensión." };
+      const response = await chrome.runtime.sendMessage({ type: "ai.suggest", auto: automatic, question: aiQuestion(owner) });
+      if (current !== owner || location.pathname !== path || !enabled || generation !== historyGeneration) return;
+      owner.ai = response?.skipped ? undefined : response?.ok ? { lines: response.lines, provider: response.provider, cached: response.cached, warning: response.warning } : { error: response?.error || "No se pudo consultar. Abre Configuración en la extensión." };
     } catch {
-      if (current !== owner || location.pathname !== path || !enabled) return;
+      if (current !== owner || location.pathname !== path || !enabled || generation !== historyGeneration) return;
       owner.ai = { error: "No se pudo consultar. Recarga la extensión y la pestaña de Platzi." };
     }
     renderPanel();
   }
   function save(record) {
     const snapshot = structuredClone(record); records.set(record.id, snapshot);
-    writes = writes.then(() => chrome.storage.local.set({ ["answer:" + record.id]: snapshot }))
+    const generation = historyGeneration;
+    writes = writes.then(() => generation === historyGeneration ? chrome.storage.local.set({ ["answer:" + record.id]: snapshot }) : undefined)
       .then(() => { error = ""; }).catch(() => { error = "No se pudo guardar. Revisa el espacio local y recarga la extensión."; renderPanel(); });
   }
   function read() {
@@ -219,7 +238,7 @@
       const checked = current.container.querySelector('[role="radio"][aria-checked="true"]');
       if (checked) capture("", text(checked.closest(S.option)?.querySelector(S.optionText)));
     }
-    feedback(); renderPanel();
+    feedback(); renderPanel(); prepareSuggestion();
   }
   function capture(prompt, answer) {
     if (!current || !answer) return;
@@ -269,6 +288,7 @@
     const data = await chrome.storage.local.get(null);
     for (const [key, value] of Object.entries(data)) if (key.startsWith("answer:")) records.set(value.id, value);
     enabled = data.enabled !== false;
+    autoSuggest = data.aiSettings?.autoSuggest === true;
     const observer = new MutationObserver(mutations => {
       if (mutations.every(m => m.target === panel || panel?.contains(m.target))) return;
       scan();
@@ -279,6 +299,15 @@
   }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
+    if (changes.historyClearedAt) {
+      historyGeneration++; records.clear(); pending = null;
+      if (current) { current.record = null; current.ai = undefined; current.aiChecked = true; current.id = crypto.randomUUID(); }
+    }
+    if (changes.aiSettings) {
+      autoSuggest = changes.aiSettings.newValue?.autoSuggest === true;
+      if (current && !current.ai) current.aiChecked = false;
+      prepareSuggestion();
+    }
     for (const [key, change] of Object.entries(changes)) if (key.startsWith("answer:")) {
       if (change.newValue) records.set(change.newValue.id, change.newValue);
       else if (change.oldValue) records.delete(change.oldValue.id);

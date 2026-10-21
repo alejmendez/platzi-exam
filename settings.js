@@ -38,6 +38,7 @@
   async function loadSettings() {
     const settings = await send({ type: "ai.settings.get" });
     configured = settings.configured; models[settings.provider] = settings.model;
+    get("ai-auto").checked = settings.autoSuggest === true;
     get("ai-provider").value = settings.provider; ready = true; showProvider();
   }
   get("ai-provider").addEventListener("change", () => { get("settings-status").textContent = ""; showProvider(); });
@@ -51,7 +52,7 @@
       // Request access from the user's save gesture, and only for the chosen provider.
       const granted = await chrome.permissions.request({ origins: [providers[provider].origin] });
       if (!granted) throw new Error("No se autorizó la conexión al proveedor. Puedes intentarlo de nuevo.");
-      await send({ type: "ai.settings.save", provider, model, apiKey });
+      await send({ type: "ai.settings.save", provider, model, apiKey, autoSuggest: get("ai-auto").checked });
       configured[provider] = configured[provider] || Boolean(apiKey);
       models[provider] = model; showProvider();
       get("settings-status").textContent = "Configuración guardada. Ya puedes pedir sugerencias en el examen.";
@@ -65,5 +66,12 @@
     finally { busy(false); }
   });
   busy(true);
+  get("history-clear").addEventListener("click", async () => {
+    if (!confirm("¿Eliminar todas tus respuestas y sugerencias de IA guardadas? No se puede deshacer. Tus claves y configuración se conservan.")) return;
+    get("history-clear").disabled = true;
+    try { await send({ type: "ai.history.clear" }); get("purge-status").textContent = "Historial y sugerencias eliminados. Se conservaron las claves y la configuración."; }
+    catch (error) { get("purge-status").textContent = error.message; }
+    finally { get("history-clear").disabled = false; }
+  });
   loadSettings().then(() => busy(false)).catch(() => { get("settings-status").textContent = "No se pudo cargar Configuración. Recarga la extensión y vuelve a abrirla."; });
 })();

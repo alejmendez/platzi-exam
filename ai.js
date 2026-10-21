@@ -77,13 +77,13 @@
         response_format: { type: "json_object" }, max_tokens: 4096 }
     };
   }
-  async function suggest(settings, apiKey, question, fetcher = fetch) {
+  async function suggest(settings, apiKey, question, fetcher = fetch, signal) {
     if (!apiKey) throw new Error("Guarda tu API key en Configuración de la extensión.");
     const r = request(settings.provider, settings.model, apiKey, question);
     let response;
     try { response = await fetcher(r.url, { method: "POST", headers: r.headers, body: JSON.stringify(r.body),
-      credentials: "omit", redirect: "error", signal: AbortSignal.timeout(25000) }); }
-    catch (error) { throw new Error(error.name === "TimeoutError" || error.name === "AbortError" ? "La consulta tardó demasiado. Puedes volver a intentarlo." : "No se pudo conectar. Revisa tu conexión y los permisos del proveedor."); }
+      credentials: "omit", redirect: "error", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000) }); }
+    catch (error) { throw new Error(error.name === "TimeoutError" || error.name === "AbortError" ? "La consulta tardó demasiado: el proveedor no completó la respuesta en 90 segundos. Pulsa Sugerir con IA para reintentar." : "No se pudo conectar. Revisa tu conexión y los permisos del proveedor."); }
     if (!response.ok) {
       const errors = { 400: "El proveedor rechazó la consulta. Revisa que el modelo admita respuestas JSON.",
         401: "API key inválida. Revísala en Configuración.", 403: "El proveedor denegó el acceso. Revisa tu API key y sus permisos.",
@@ -97,6 +97,23 @@
     const raw = settings.provider === "gemini" ? body.candidates?.[0]?.content?.parts?.filter(p => !p.thought).map(p => p.text || "").join("") : body.choices?.[0]?.message?.content;
     return parse(raw, question);
   }
-  root.PlatziAI = { providers, checkQuestion, prompt, parse, request, suggest };
+  function cacheIdentity(input) {
+    const q = checkQuestion(input), norm = value => value.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+    const group = ids => ids?.map(id => norm(q.options[id - 1])).sort();
+    return JSON.stringify([norm(q.course), norm(q.question), q.kind, q.options.map(norm).sort(),
+      group(q.groups.left), group(q.groups.right), q.groups.gaps]);
+  }
+  function reuseSuggestion(saved, input) {
+    if (!saved || cacheIdentity(saved.question) !== cacheIdentity(input)) return null;
+    const q = checkQuestion(input), old = checkQuestion(saved.question);
+    // Ambiguous duplicate labels must not be remapped to a different option.
+    if (new Set(q.options).size !== q.options.length || !Array.isArray(saved.lines)) return null;
+    const answers = q.targets.map((target, index) => {
+      const oldIndex = ["matching", "categorization"].includes(q.kind) ? old.targets.findIndex(id => old.options[Number(id) - 1] === q.options[Number(target) - 1]) : index;
+      return { target, option: q.options.indexOf(saved.lines[oldIndex]?.text) + 1 };
+    });
+    try { return parse(JSON.stringify({ answers }), input); } catch { return null; }
+  }
+  root.PlatziAI = { providers, checkQuestion, prompt, parse, request, suggest, cacheIdentity, reuseSuggestion };
   if (typeof module !== "undefined") module.exports = root.PlatziAI;
 })(globalThis);

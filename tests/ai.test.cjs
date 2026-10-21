@@ -83,17 +83,17 @@ function background() {
   let listener;
   const keys = new Map(), local = {};
   const context = {
-    URL, importScripts() {}, PlatziAI: { ...ai },
+    URL, AbortController, crypto: require('node:crypto').webcrypto, TextEncoder, importScripts() {}, PlatziAI: { ...ai }, PlatziHistory: require('../core.js'),
     PlatziVault: { async access(provider, operation, value) { if (operation === 'put') keys.set(provider, value); if (operation === 'delete') keys.delete(provider); return keys.get(provider); } },
     chrome: { runtime: { getURL: path => `chrome-extension://test/${path}`, onMessage: { addListener(fn) { listener = fn; } } },
-      storage: { local: { get: async () => local, set: async data => Object.assign(local, data) } },
+      storage: { local: { get: async () => local, set: async data => Object.assign(local, data), remove: async keys => keys.forEach(key => delete local[key]) } },
       permissions: { contains: async () => true } }
   };
   vm.runInNewContext(readFileSync(require.resolve('../background.js'), 'utf8'), context);
   return { context, keys, local, send: (message, sender) => new Promise(resolve => listener(message, sender, resolve)) };
 }
 const popup = { url: 'chrome-extension://test/history.html' };
-const exam = { url: 'https://platzi.com/evaluacion/test/', tab: { id: 1 } };
+const exam = { url: 'https://platzi.com/evaluacion/test/', documentId: 'first-document', tab: { id: 1 } };
 
 test('las páginas de Platzi no pueden leer ni cambiar claves y el historial exportable no las contiene', async () => {
   const h = background();
@@ -112,12 +112,97 @@ test('las páginas de Platzi no pueden leer ni cambiar claves y el historial exp
 test('el fondo admite una sola consulta simultánea por pestaña', async () => {
   const h = background();
   h.keys.set('gemini', 'test-key');
-  let finish;
-  h.context.PlatziAI.suggest = () => new Promise(resolve => { finish = resolve; });
+  let finish, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  h.context.PlatziAI.suggest = () => new Promise(resolve => { finish = resolve; started(); });
   const first = h.send({ type: 'ai.suggest', question: single }, exam);
-  await new Promise(resolve => setImmediate(resolve));
+  await ready;
   const second = await h.send({ type: 'ai.suggest', question: single }, exam);
   assert.equal(second.ok, false); assert.match(second.error, /consulta en curso/);
   finish([{ label: 'Respuesta sugerida: A', text: 'Uno' }]);
   assert.equal((await first).ok, true);
+});
+
+test('la caché conserva la respuesta y recalcula la letra si cambia el orden', () => {
+  const saved = { question: single, lines: ai.parse(answer([{ target: 'answer', option: 4 }]), single) };
+  const shuffled = { ...single, options: ['Cuatro', 'Tres', 'Dos', 'Uno'] };
+  assert.deepEqual(ai.reuseSuggestion(saved, shuffled), [{ label: 'Respuesta sugerida: A', text: 'Cuatro' }]);
+  assert.equal(ai.reuseSuggestion(saved, { ...single, course: 'Otro curso' }), null);
+  const matching = { ...single, kind: 'matching', options: ['A', 'B', 'Uno', 'Dos'], groups: { left: [1, 2], right: [3, 4] } };
+  const pairs = { question: matching, lines: ai.parse(answer([{ target: '1', option: 3 }, { target: '2', option: 4 }]), matching) };
+  assert.deepEqual(ai.reuseSuggestion(pairs, { ...matching, options: ['B', 'A', 'Dos', 'Uno'] }), [{ label: 'B', text: 'Dos' }, { label: 'A', text: 'Uno' }]);
+  assert.equal(ai.reuseSuggestion(pairs, { ...matching, groups: { left: [1, 3], right: [2, 4] } }), null);
+});
+
+test('recargar cancela la consulta vieja y su finalizacion no desbloquea la nueva', async () => {
+  const h = background(); h.keys.set('gemini', 'test-key');
+  const requests = [];
+  let notify;
+  h.context.PlatziAI.suggest = (_settings, _key, _question, _fetcher, signal) => new Promise(resolve => {
+    requests.push({ resolve, signal }); notify?.();
+  });
+  const waitForRequest = () => new Promise(resolve => { notify = resolve; });
+  let started = waitForRequest();
+  const old = h.send({ type: 'ai.suggest', question: single }, exam);
+  await started;
+  const reloaded = { ...exam, documentId: 'reloaded-document' };
+  // Reading the cache from the new page cancels work belonging to the old page.
+  assert.equal((await h.send({ type: 'ai.cached', question: single }, reloaded)).ok, true);
+  assert.equal(requests[0].signal.aborted, true);
+  started = waitForRequest();
+  const fresh = h.send({ type: 'ai.suggest', auto: true, question: single }, reloaded);
+  h.local.aiSettings = { autoSuggest: true };
+  await started;
+  requests[0].resolve([{ label: 'Respuesta sugerida: A', text: 'Uno' }]);
+  assert.equal((await old).skipped, true);
+  assert.equal(Object.keys(h.local).some(key => key.startsWith('ai-cache:')), false);
+  assert.equal((await h.send({ type: 'ai.suggest', question: single }, reloaded)).ok, false);
+  requests[1].resolve([{ label: 'Respuesta sugerida: B', text: 'Dos' }]);
+  assert.equal((await fresh).ok, true);
+  const cached = await h.send({ type: 'ai.cached', question: single }, reloaded);
+  assert.equal(cached.lines[0].text, 'Dos');
+});
+
+test('la cancelacion de una pagina se propaga a la peticion del proveedor', async () => {
+  const controller = new AbortController(); let requestSignal;
+  const result = ai.suggest({ provider: 'gemini', model: ai.providers.gemini.model }, 'test-key', single,
+    async (_url, options) => {
+      requestSignal = options.signal;
+      return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject({ name: 'AbortError' }), { once: true }));
+    }, controller.signal);
+  controller.abort();
+  assert.equal(requestSignal.aborted, true);
+  await assert.rejects(result, /Pulsa Sugerir con IA/);
+});
+
+test('automático apagado no consulta, encendido omite respuestas previas y reutiliza IA', async () => {
+  const h = background(); let calls = 0;
+  h.keys.set('gemini', 'test-key');
+  h.context.PlatziAI.suggest = async () => { calls++; return [{ label: 'Respuesta sugerida: A', text: 'Uno' }]; };
+  assert.equal((await h.send({ type: 'ai.suggest', auto: true, question: single }, exam)).skipped, true);
+  h.local.aiSettings = { autoSuggest: true };
+  h.local['answer:old'] = { ...single, type: single.kind, selected: ['Uno'] };
+  assert.equal((await h.send({ type: 'ai.suggest', auto: true, question: single }, exam)).skipped, true);
+  delete h.local['answer:old'];
+  assert.equal((await h.send({ type: 'ai.suggest', auto: true, question: single }, exam)).ok, true);
+  const cached = await h.send({ type: 'ai.cached', question: { ...single, options: ['Cuatro', 'Tres', 'Dos', 'Uno'] } }, exam);
+  assert.equal(cached.cached, true); assert.equal(cached.lines[0].label, 'Respuesta sugerida: D');
+  await h.send({ type: 'ai.suggest', auto: true, question: single }, exam);
+  assert.equal(calls, 1);
+});
+
+test('limpiar elimina respuestas y caché, conserva claves y bloquea resultados pendientes', async () => {
+  const h = background(); let finish, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  h.keys.set('gemini', 'test-key'); h.local.aiSettings = { autoSuggest: true };
+  h.local['answer:old'] = {}; h.local['ai-cache:old'] = {};
+  h.context.PlatziAI.suggest = () => new Promise(resolve => { finish = resolve; started(); });
+  const pending = h.send({ type: 'ai.suggest', question: single }, exam);
+  await ready;
+  assert.equal((await h.send({ type: 'ai.history.clear' }, exam)).ok, false);
+  assert.equal((await h.send({ type: 'ai.history.clear' }, popup)).ok, true);
+  finish([{ label: 'Respuesta sugerida: A', text: 'Uno' }]);
+  assert.equal((await pending).skipped, true);
+  assert.equal(Object.keys(h.local).some(key => /^(answer:|ai-cache:)/.test(key)), false);
+  assert.equal(h.keys.get('gemini'), 'test-key'); assert.equal(h.local.aiSettings.autoSuggest, true);
 });
