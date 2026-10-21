@@ -32,12 +32,13 @@ async function harness(initial = {}, kind = 'single-choice') {
     append(...nodes) { this.children.push(...nodes); }
     replaceChildren(...nodes) { this.children = nodes; }
     attachShadow() { this.shadowRoot = new Element(); return this.shadowRoot; }
-    setAttribute() {}
+    setAttribute(name, value) { (this.attributes ||= {})[name] = value; }
     contains() { return false; }
     after() {}
     remove() { this.isConnected = false; }
+    addEventListener(name, callback) { this[name] = callback; }
   }
-  const option = { innerText: 'Respuesta A', querySelector: () => ({ innerText: 'Respuesta A' }) };
+  const option = { innerText: 'Respuesta A', getAttribute: () => 'concept', querySelector: () => ({ innerText: 'Respuesta A' }) };
   const control = new Element();
   control.closest = selector => selector.includes('answer-option') ? option : null;
   control.matches = selector => selector.includes('[role="radio"]');
@@ -72,7 +73,7 @@ async function harness(initial = {}, kind = 'single-choice') {
   const context = {
     PlatziHistory: core, crypto: webcrypto, structuredClone, Element, location: { pathname: '/evaluacion/123/' },
     document: {
-      title: 'Curso de prueba - Examen | Platzi', body: {},
+      title: 'Curso de prueba - Examen | Platzi', body: new Element(),
       createElement: tag => { const node = new Element(); node.tagName = tag; created.push(node); return node; },
       addEventListener: (name, listener) => { if (name === 'click') click = listener; },
       querySelector(selector) {
@@ -87,13 +88,13 @@ async function harness(initial = {}, kind = 'single-choice') {
     chrome: {
       storage: { local: { get: async () => ({ ...initial }), set: async values => Object.assign(data, values) },
         onChanged: { addListener: callback => { storageChange = callback; } } },
-      runtime: { onMessage: { addListener() {} } }
+      runtime: { onMessage: { addListener() {} }, sendMessage: message => state.sendMessage(message) }
     }
   };
   vm.runInNewContext(readFileSync(require.resolve('../content.js'), 'utf8'), context);
   const flush = () => new Promise(resolve => setImmediate(resolve));
   await flush();
-  return { data, state, created, observe: () => observe([{ target: context.document.body }]), click: () => click({ target }), flush,
+  return { data, state, created, mount: context.document.body, observe: () => observe([{ target: context.document.body }]), click: () => click({ target }), flush,
     choose(value, type) {
       const node = new Element(); node.innerText = value;
       node.matches = selector => !selector.includes(':disabled') && (selector === '[data-card-type]' || selector.includes('Categorizar como'));
@@ -136,12 +137,19 @@ test('no asigna el acierto de una pregunta posterior a una respuesta sin confirm
   assert.equal(records.find(r => r.question === 'Pregunta dos').result, 'correct');
 });
 
-test('manifest restringe la captura a Platzi y solicita únicamente almacenamiento', () => {
+test('manifest restringe la captura a Platzi y la red es opcional por proveedor', () => {
   const manifest = JSON.parse(readFileSync(require.resolve('../manifest.json'), 'utf8'));
   assert.deepEqual(manifest.permissions, ['storage']);
   assert.deepEqual(manifest.content_scripts[0].matches, ['https://platzi.com/*', 'https://www.platzi.com/*']);
-  for (const file of [...manifest.content_scripts[0].js, 'history.js']) {
+  assert.deepEqual(manifest.optional_host_permissions, ['https://generativelanguage.googleapis.com/*', 'https://openrouter.ai/*']);
+  assert.equal(manifest.host_permissions, undefined);
+  for (const file of [...manifest.content_scripts[0].js, 'history.js', 'settings.js', 'ai.js', 'vault.js', 'background.js']) {
     new vm.Script(readFileSync(require.resolve('../' + file), 'utf8'), { filename: file });
+  }
+  for (const [size, file] of Object.entries(manifest.icons)) {
+    const png = readFileSync(require.resolve('../' + file));
+    assert.equal(png.readUInt32BE(16), Number(size));
+    assert.equal(png.readUInt32BE(20), Number(size));
   }
 });
 
@@ -180,7 +188,7 @@ test('muestra respuestas anteriores en un elemento HTML usando texto seguro', as
   const h = await harness({ 'answer:anterior': record });
   const panel = h.created.find(node => node.tagName === 'aside');
   assert.ok(panel);
-  const body = panel.shadowRoot.children[1];
+  const body = panel.shadowRoot.children[1].children[1];
   assert.match(body.children[0].textContent, /Ya respondiste/);
   assert.equal(body.children[1].textContent, 'Esta NO es la respuesta: <img src=x onerror=alert(1)>');
 });
@@ -221,4 +229,50 @@ test('captura huecos desde el DOM y conserva la afirmación estable al llenarlos
   assert.deepEqual(record.selected, ['Hueco gap_1 → Irish']);
   assert.equal(record.steps[0].result, 'correct');
   assert.equal(record.result, 'correct');
+});
+
+test('la consulta IA es manual, no altera el historial y descarta respuestas de otra pregunta', async () => {
+  const h = await harness();
+  let finish;
+  const messages = [];
+  h.state.sendMessage = message => { messages.push(message); return new Promise(resolve => { finish = resolve; }); };
+  const button = h.created.find(node => node.tagName === 'button' && node.textContent === 'Sugerir con IA');
+  assert.ok(button);
+  await button.click({ isTrusted: false });
+  assert.equal(messages.length, 0);
+  const request = button.click({ isTrusted: true });
+  assert.equal(messages.length, 1);
+  assert.equal(Object.keys(h.data).length, 0);
+  h.state.question = 'Otra pregunta'; h.observe();
+  finish({ ok: true, lines: [{ label: 'Respuesta sugerida: A', text: 'Respuesta A' }], provider: 'Gemini' });
+  await request;
+  const panel = h.created.findLast(node => node.tagName === 'aside');
+  const contents = JSON.stringify(panel.shadowRoot.children[1].children[1].children);
+  assert.doesNotMatch(contents, /Respuesta sugerida/);
+});
+
+test('el panel flota fuera del examen y conserva contracción y tamaño al llegar la respuesta IA', async () => {
+  const h = await harness();
+  const panel = h.created.find(node => node.tagName === 'aside');
+  assert.ok(h.mount.children.includes(panel));
+  const frame = panel.shadowRoot.children[1];
+  const body = frame.children[1];
+  frame.style = { width: '500px', height: '400px' };
+  const toggle = h.created.find(node => node.tagName === 'button' && node.textContent === 'Contraer');
+  let finish;
+  h.state.sendMessage = () => new Promise(resolve => { finish = resolve; });
+  const button = h.created.find(node => node.tagName === 'button' && node.textContent === 'Sugerir con IA');
+  const request = button.click({ isTrusted: true });
+  toggle.click();
+  assert.equal(body.hidden, true);
+  assert.equal(toggle.attributes['aria-expanded'], 'false');
+  finish({ ok: true, lines: [{ label: 'Respuesta sugerida: A', text: 'Respuesta A' }], provider: 'Gemini' });
+  await request;
+  assert.equal(panel.shadowRoot.children[1], frame);
+  assert.equal(body.hidden, true);
+  assert.equal(frame.style.width, '500px');
+  toggle.click();
+  assert.equal(body.hidden, false);
+  assert.equal(toggle.attributes['aria-expanded'], 'true');
+  assert.match(JSON.stringify(body.children), /Respuesta sugerida/);
 });

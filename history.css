@@ -9,3 +9,12 @@ input[type="search"] { display: block; width: 100%; box-sizing: border-box; marg
 .hint, small, #summary { color: #b1c1cd; } article { background: #182530; border: 1px solid #34434f; border-radius: 12px; padding: 16px; margin: 14px 0; }
 .result { font-weight: 700; } .correct { color: #0aeb8b; } .incorrect { color: #ff9797; } .unknown, .skipped { color: #ffce83; }
 p, h2, li { overflow-wrap: anywhere; } .selected { font-weight: 700; color: #c4f3df; }
+[hidden] { display: none !important; }
+.brand { display: flex; align-items: center; gap: 12px; } .brand .eyebrow { margin: 0; }
+.tabs { display: flex; gap: 8px; margin: 16px 0; border-bottom: 1px solid #34434f; padding-bottom: 12px; }
+.tabs [aria-selected="true"] { color: #0aeb8b; border-color: #0aeb8b; }
+#ai-form label { display: block; margin: 16px 0 6px; }
+#ai-form select, #ai-form input { width: 100%; box-sizing: border-box; border: 1px solid #43505b; border-radius: 8px; padding: 10px; color: inherit; background: #182530; font: inherit; }
+.actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+button:disabled { opacity: .55; cursor: default; } a { color: #81f5b7; }
+:focus-visible { outline: 2px solid #0aeb8b; outline-offset: 3px; }

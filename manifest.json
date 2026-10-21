@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Platzi · Mi historial de exámenes",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "description": "Respaldo personal de preguntas, respuestas y resultados observables en Platzi.",
   "permissions": ["storage"],
-  "action": { "default_popup": "history.html", "default_title": "Mi historial de Platzi" },
+  "optional_host_permissions": ["https://generativelanguage.googleapis.com/*", "https://openrouter.ai/*"],
+  "background": { "service_worker": "background.js" },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": { "default_popup": "history.html", "default_title": "Mi historial de Platzi", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png" } },
   "content_scripts": [{
     "matches": ["https://platzi.com/*", "https://www.platzi.com/*"],
     "js": ["core.js", "content.js"],

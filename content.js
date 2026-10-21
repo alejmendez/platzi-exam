@@ -23,23 +23,58 @@
   }
   const counter = () => core.counters(document.querySelector('[role="progressbar"]')?.getAttribute("aria-label"),
     document.querySelector('[aria-label*="vidas restantes"]')?.getAttribute("aria-label"));
-  let panel = null, panelBody = null, panelKey = "";
-  function removePanel() { panel?.remove(); panel = null; panelBody = null; panelKey = ""; }
+  let panel = null, panelBody = null, panelFrame = null, panelToggle = null, panelKey = "", panelCollapsed = false;
+  function removePanel() { panel?.remove(); panel = null; panelBody = null; panelFrame = null; panelToggle = null; panelKey = ""; }
+  function togglePanel() {
+    panelCollapsed = !panelCollapsed;
+    panelFrame.setAttribute("data-collapsed", String(panelCollapsed));
+    panelBody.hidden = panelCollapsed;
+    panelToggle.textContent = panelCollapsed ? "Expandir" : "Contraer";
+    panelToggle.setAttribute("aria-expanded", String(!panelCollapsed));
+  }
   function renderPanel() {
     if (!enabled || !current) { removePanel(); return; }
     const previous = Array.from(records.values()).filter(r => r.id !== current.id && core.sameQuestion(r, { ...current, course }));
     const notes = previous.flatMap(core.notes);
-    const key = JSON.stringify([current.id, notes, error]);
+    const key = JSON.stringify([current.id, notes, error, current.ai]);
     if (key === panelKey && panel?.isConnected) return;
     if (!panel?.isConnected) {
       panel = document.createElement("aside"); panel.id = "platzi-history-note";
       const shadow = panel.attachShadow({ mode: "open" });
       const style = document.createElement("style");
-      style.textContent = ':host{display:block;margin:16px 0;width:100%;font:14px/1.5 system-ui,sans-serif;color:#edf5f1}section{padding:14px 16px;background:#122b27;border:1px solid #427369;border-radius:10px}strong{display:block}p{margin:7px 0;overflow-wrap:anywhere}.correct{color:#81f5b7}.incorrect{color:#ffb1b1}.unknown,.skipped{color:#ffdc9d}';
+      style.textContent = `
+        :host{all:initial;display:block;position:fixed;right:16px;top:16px;z-index:2147483647;font:14px/1.5 system-ui,sans-serif;color:#edf5f1;text-align:left;color-scheme:dark}
+        *{box-sizing:border-box}
+        .window{display:flex;flex-direction:column;direction:rtl;width:min(400px,calc(100vw - 32px));height:min(440px,calc(100dvh - 32px));min-width:min(260px,calc(100vw - 32px));min-height:min(160px,calc(100dvh - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);resize:both;overflow:hidden;background:#122b27;border:1px solid #427369;border-radius:12px;box-shadow:0 8px 32px #0008}
+        header,.body{direction:ltr}
+        .window[data-collapsed="true"]{width:240px!important;height:auto!important;min-width:0;min-height:0;resize:none}
+        header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #427369;flex:none}
+        .body{padding:14px 16px;overflow:auto;overscroll-behavior:contain;min-height:0;flex:1}
+        [hidden]{display:none!important}strong{display:block}p{margin:7px 0;overflow-wrap:anywhere}
+        .correct{color:#81f5b7}.incorrect{color:#ffb1b1}.unknown,.skipped{color:#ffdc9d}
+        .ai{border-top:1px solid #427369;margin-top:12px;padding-top:12px}
+        button{background:#213e3a;border:1px solid #70c8a6;border-radius:7px;padding:8px 12px;color:#edf5f1;font:inherit;cursor:pointer}
+        button:disabled{opacity:.6;cursor:default}button:focus-visible{outline:2px solid #0aeb8b;outline-offset:3px}
+        .ai-line{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 0;overflow-wrap:anywhere}.ai-line span{min-width:0;max-width:100%}
+        .ai-label{font-weight:600;color:#a1dcff}.ai-hint{font-size:12px;color:#b1c1cd}.ai-error{color:#ffb1b1}
+      `;
+      panelFrame = document.createElement("div"); panelFrame.className = "window";
+      panelFrame.setAttribute("data-collapsed", String(panelCollapsed));
+      const header = document.createElement("header");
+      const heading = document.createElement("strong"); heading.textContent = "Mi historial · IA";
+      panelToggle = document.createElement("button"); panelToggle.type = "button";
+      panelToggle.textContent = panelCollapsed ? "Expandir" : "Contraer";
+      panelToggle.setAttribute("aria-expanded", String(!panelCollapsed));
+      panelToggle.setAttribute("aria-controls", "platzi-panel-content");
+      panelToggle.addEventListener("click", togglePanel);
+      header.append(heading, panelToggle);
       panelBody = document.createElement("section");
+      panelBody.id = "platzi-panel-content"; panelBody.className = "body"; panelBody.hidden = panelCollapsed;
       panelBody.setAttribute("aria-label", "Historial personal de esta pregunta");
-      shadow.append(style, panelBody);
-      current.container.querySelector(S.question).after(panel);
+      panelFrame.append(header, panelBody);
+      shadow.append(style, panelFrame);
+      // Mount outside the exam card: its fixed-height header clips overflowing content.
+      document.body.append(panel);
     }
     panelKey = key;
     const title = document.createElement("strong");
@@ -54,6 +89,43 @@
     if (!previous.length || error) {
       const p = document.createElement("p"); p.textContent = error || "Se guardarán tus elecciones y el resultado que muestre Platzi."; panelBody.append(p);
     }
+    if (current.kind !== "unsupported") {
+      const ai = document.createElement("div"); ai.className = "ai";
+      const button = document.createElement("button"); button.type = "button";
+      button.textContent = current.ai?.loading ? "Consultando…" : current.ai?.lines ? "Volver a consultar IA" : "Sugerir con IA";
+      button.disabled = Boolean(current.ai?.loading);
+      button.addEventListener("click", requestSuggestion);
+      const hint = document.createElement("p"); hint.className = "ai-hint";
+      hint.textContent = current.ai?.provider ? `Sugerencia de ${current.ai.provider} · Puede equivocarse.` : "Envía esta pregunta al proveedor configurado. La IA solo sugiere; tú seleccionas.";
+      ai.append(button, hint);
+      if (current.ai?.error) { const p = document.createElement("p"); p.className = "ai-error"; p.textContent = current.ai.error; ai.append(p); }
+      for (const line of current.ai?.lines || []) {
+        const row = document.createElement("div"); row.className = "ai-line";
+        const label = document.createElement("span"); label.className = "ai-label"; label.textContent = line.label;
+        const value = document.createElement("span"); value.textContent = `→ ${line.text}`;
+        row.append(label, value); ai.append(row);
+      }
+      panelBody.append(ai);
+    }
+    const resizeHint = document.createElement("p"); resizeHint.className = "ai-hint";
+    resizeHint.textContent = "Ajusta el tamaño desde la esquina inferior izquierda.";
+    panelBody.append(resizeHint);
+  }
+  async function requestSuggestion(event) {
+    if (!event.isTrusted || !enabled || !current || current.ai?.loading) return;
+    const owner = current, path = location.pathname;
+    owner.ai = { loading: true }; renderPanel();
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "ai.suggest", question: {
+        kind: owner.kind, course, question: owner.question, options: owner.options, groups: owner.groups
+      } });
+      if (current !== owner || location.pathname !== path || !enabled) return;
+      owner.ai = response?.ok ? { lines: response.lines, provider: response.provider } : { error: response?.error || "No se pudo consultar. Abre Configuración en la extensión." };
+    } catch {
+      if (current !== owner || location.pathname !== path || !enabled) return;
+      owner.ai = { error: "No se pudo consultar. Recarga la extensión y la pestaña de Platzi." };
+    }
+    renderPanel();
   }
   function save(record) {
     const snapshot = structuredClone(record); records.set(record.id, snapshot);
@@ -65,21 +137,28 @@
     const container = document.querySelector(S.container);
     const question = questionText(container);
     if (!question) return null;
-    let kind = "unsupported", options = [];
+    let kind = "unsupported", options = [], groups = {};
     if (container.querySelector('[data-testid="fill-the-gap"]')) {
       kind = "fill-gaps";
       options = [...all(container, S.wordLabel).map(text), ...all(container, S.gapLabel).map(text)];
+      groups.gaps = all(container, S.gap).map(gap => gap.getAttribute("data-gap-id"));
     } else if (container.querySelector('[data-testid="magnet-cards"]')) {
       kind = "ordering"; options = all(container, S.orderLabel).map(text);
     } else if (container.querySelector('[class*="MatchCardsAdapter"]')) {
       kind = "matching"; options = all(container, S.match).map(text);
+      const cards = all(container, S.match);
+      groups.left = cards.flatMap((card, i) => card.getAttribute("data-card-type") === "concept" ? [i + 1] : []);
+      groups.right = cards.flatMap((card, i) => card.getAttribute("data-card-type") === "definition" ? [i + 1] : []);
     } else if (container.querySelector('[data-testid="swipe-cards"]')) {
       kind = "categorization";
       options = [...all(container, S.cardText).map(text), ...all(container, 'button[aria-label^="Categorizar como "]').map(e => e.getAttribute("aria-label").replace("Categorizar como ", ""))];
+      const count = all(container, S.cardText).length;
+      groups.left = options.slice(0, count).map((_, i) => i + 1);
+      groups.right = options.slice(count).map((_, i) => count + i + 1);
     } else if (container.querySelector('[role="radiogroup"]')) {
       kind = "single-choice"; options = all(container, S.option).map(e => text(e.querySelector(S.optionText)));
     }
-    return { container, question, options, kind };
+    return { container, question, options, kind, groups };
   }
   function finish(result, evidence) {
     if (!pending || result === "unknown") return;

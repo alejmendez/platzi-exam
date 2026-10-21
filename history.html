@@ -2,10 +2,34 @@
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mi historial de Platzi</title><link rel="stylesheet" href="history.css"></head>
 <body>
-  <header><p class="eyebrow">PLATZI · RESPALDO PERSONAL</p><h1>Mi historial de exámenes</h1><p id="status" role="status">Consultando captura…</p></header>
+  <header><div class="brand"><img src="icons/icon-48.png" width="40" height="40" alt=""><div><p class="eyebrow">PLATZI · RESPALDO PERSONAL</p><h1>Mi historial de exámenes</h1></div></div><p id="status" role="status">Consultando captura…</p></header>
+  <div class="tabs" role="tablist" aria-label="Secciones">
+    <button id="tab-history" role="tab" aria-controls="page-history" aria-selected="true">Historial</button>
+    <button id="tab-settings" role="tab" aria-controls="page-settings" aria-selected="false" tabindex="-1">Configuración</button>
+  </div>
+  <section id="page-history" role="tabpanel" aria-labelledby="tab-history">
   <nav><label><input type="checkbox" id="enabled"> Guardar respuestas</label><button id="export">Exportar JSON</button><button id="open">Abrir historial</button></nav>
   <p class="hint">Solo registra lo que respondes en Platzi. «Sin confirmar» significa que no se observó un resultado. Los datos permanecen en este navegador.</p>
   <label>Buscar <input type="search" id="search" placeholder="Curso, pregunta o respuesta"></label>
   <p id="summary"></p><main id="records"></main>
-  <script src="core.js"></script><script src="history.js"></script>
+  </section>
+  <section id="page-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <h2>Sugerencias con IA</h2>
+    <p class="hint">En el examen, pulsa «Sugerir con IA» para enviar el enunciado y las opciones al proveedor elegido. La IA solo sugiere: tú eliges la respuesta.</p>
+    <form id="ai-form">
+      <label for="ai-provider">Proveedor</label>
+      <select id="ai-provider"><option value="gemini">Gemini</option><option value="openrouter">OpenRouter</option></select>
+      <label for="ai-model">Modelo</label>
+      <input id="ai-model" type="text" required maxlength="120" spellcheck="false">
+      <p id="model-hint" class="hint"></p>
+      <label for="ai-key">API key</label>
+      <input id="ai-key" type="password" maxlength="512" autocomplete="off" spellcheck="false" placeholder="Pega tu clave aquí">
+      <p id="key-status" class="hint"></p>
+      <div class="actions"><button id="ai-save" type="submit">Guardar configuración</button><button id="ai-delete" type="button">Eliminar clave</button></div>
+    </form>
+    <p id="settings-status" role="status" aria-live="polite"></p>
+    <p class="hint">La clave se guarda en este navegador y no se incluye en el JSON del historial. Las sugerencias pueden equivocarse y no se guardan como aciertos confirmados.</p>
+    <p class="hint">El acceso gratuito depende del modelo y del cupo de tu cuenta. <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini</a> · <a href="https://openrouter.ai/openrouter/free" target="_blank" rel="noreferrer">OpenRouter Free</a></p>
+  </section>
+  <script src="core.js"></script><script src="ai.js"></script><script src="history.js"></script><script src="settings.js"></script>
 </body></html>
