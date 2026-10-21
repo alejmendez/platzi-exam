@@ -1,12 +1,23 @@
 # Mi historial de exámenes de Platzi
 
-Extensión personal de Chrome (Manifest V3), sin dependencias ni compilación.
+Extensión personal de Chrome (Manifest V3), sin dependencias ni compilación. Incluye empaquetado automático en GitHub Actions.
+
+## Descargar el ZIP e instalarlo
+
+El ZIP es un paquete para descargar y extraer: **no se instala directamente como archivo ZIP en Chrome**. Para uso personal se carga la carpeta descomprimida. Los archivos `.crx` fuera de la tienda tienen restricciones en Windows y macOS; no se generan aquí. Consulta la [documentación de distribución de Chrome](https://developer.chrome.com/docs/extensions/how-to/distribute).
+
+1. Abre las [Releases del proyecto](https://github.com/alejmendez/platzi-exam/releases) y elige la versión deseada.
+2. En **Assets**, descarga `platzi-exam-VERSION.zip`, no los archivos automáticos **Source code** de GitHub.
+3. Extrae el ZIP en una carpeta permanente. `manifest.json` debe quedar directamente dentro de esa carpeta.
+4. Sigue los pasos de instalación de la siguiente sección desde el paso 2.
+
+Para actualizar conservando la instalación, cierra el examen y extrae el nuevo paquete sobre la **misma carpeta** que Chrome ya tiene cargada; después sigue «Actualizar una instalación existente». No cargues cada versión desde una carpeta distinta si quieres conservar la misma instalación y sus datos.
 
 ## Instalar en Chrome paso a paso
 
 No necesitas instalar paquetes ni compilar el proyecto. Realiza estos pasos antes de iniciar un examen:
 
-1. Ten el proyecto en una carpeta local. En este equipo está en `C:\alejmendez\dev\platzi-exam`. Si recibiste un ZIP, extráelo primero.
+1. Ten el proyecto o el paquete extraído en una carpeta local. En este equipo el proyecto está en `C:\alejmendez\dev\platzi-exam`.
 2. Abre Chrome con el perfil donde utilizas Platzi.
 3. Escribe `chrome://extensions` en la barra de direcciones y pulsa **Enter**.
 4. Activa **Modo de desarrollador**, en la esquina superior derecha.
@@ -24,6 +35,48 @@ No necesitas instalar paquetes ni compilar el proyecto. Realiza estos pasos ante
 4. Para aplicar cambios al panel y a la captura, recarga también la pestaña de Platzi, preferiblemente antes de iniciar un examen. Recargar solo la extensión no actualiza los scripts de una pestaña ya abierta.
 
 Recargar conserva el historial y las claves guardadas. No hace falta desinstalar ni volver a cargar la carpeta; desinstalar elimina los datos de la extensión. En las pruebas, recargar y reanudar un examen hizo que Platzi dejara de mostrar sus indicadores nativos de tiempo, vidas y progreso, incluso con la extensión desactivada.
+
+## Paquetes automáticos y versiones en GitHub
+
+El flujo [Empaquetar extensión](.github/workflows/package.yml) se ejecuta al subir cambios a cualquier rama, al subir una etiqueta que empiece por `v` y manualmente desde **Actions → Empaquetar extension → Run workflow**. No requiere instalar dependencias ni agregar claves de Gemini a GitHub.
+
+- **Commit:** guarda un cambio del proyecto. El empaquetado remoto se ejecuta al hacer `push`, no al guardar archivos ni al hacer un commit solo local.
+- **Artifact:** paquete que produce cada ejecución de Actions. Se conserva durante 30 días; cada ejecución tiene su propio número, aunque la versión del manifiesto no cambie.
+- **Tag:** etiqueta que identifica el commit de una versión, por ejemplo `v0.3.3`.
+- **Release:** página de descarga asociada a ese tag, con el ZIP y notas generadas por GitHub. Se crea automáticamente al subir el tag y no depende de la caducidad del artifact.
+
+### Descargar el paquete de cualquier cambio
+
+1. Sube los commits a GitHub.
+2. Abre [Actions del proyecto](https://github.com/alejmendez/platzi-exam/actions) y selecciona la ejecución **Empaquetar extension** correspondiente.
+3. Espera a que termine correctamente y descarga el elemento de **Artifacts** (necesitas iniciar sesión en GitHub).
+4. Extrae la descarga de Actions: dentro encontrarás `platzi-exam-VERSION.zip`. Extrae también ese ZIP y carga su carpeta en Chrome. Esta doble extracción se debe al envoltorio que GitHub añade al artifact.
+
+### Publicar una versión descargable
+
+1. Cambia `version` en `manifest.json` cuando prepares una nueva versión. Usa números, por ejemplo `0.3.4`.
+2. Guarda los cambios en un commit y súbelo a GitHub.
+3. Crea y sube una etiqueta con la misma versión precedida de `v`. Ejemplo para una futura versión `0.3.4`:
+
+   ```powershell
+   git tag v0.3.4
+   git push origin v0.3.4
+   ```
+
+4. Actions comprueba que etiqueta y manifiesto coincidan, genera el ZIP y crea la Release con el archivo adjunto. Si no coinciden, falla sin publicar una Release.
+5. Abre [Releases](https://github.com/alejmendez/platzi-exam/releases) y descarga el ZIP desde **Assets**. Cada versión debe usar un tag nuevo; no reutilices una etiqueta ya publicada.
+
+Los archivos del flujo deben estar guardados y subidos a GitHub para que la automatización funcione. Si Actions está desactivado en el repositorio, actívalo en su pestaña **Actions**. No se publica nada en Chrome Web Store ni se actualizan automáticamente las instalaciones de Chrome.
+
+### Generar el ZIP localmente
+
+Desde la carpeta del proyecto, ejecuta en PowerShell:
+
+```powershell
+./scripts/package.ps1
+```
+
+Se genera `dist/platzi-exam-VERSION.zip`, tomando la versión de `manifest.json`. El paquete contiene únicamente los archivos necesarios de la extensión, con el manifiesto en la raíz. Excluye pruebas, documentación, Git y archivos locales de respaldo; tampoco contiene el historial ni las claves guardadas en Chrome. La carpeta `dist` no se sube a Git.
 
 ## Alcance de la versión 0.3
 
