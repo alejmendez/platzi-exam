@@ -154,7 +154,7 @@ test('manifest restringe la captura a Platzi y la red es opcional por proveedor'
   const manifest = JSON.parse(readFileSync(require.resolve('../manifest.json'), 'utf8'));
   assert.deepEqual(manifest.permissions, ['storage']);
   assert.deepEqual(manifest.content_scripts[0].matches, ['https://platzi.com/*', 'https://www.platzi.com/*']);
-  assert.deepEqual(manifest.optional_host_permissions, ['https://generativelanguage.googleapis.com/*', 'https://openrouter.ai/*']);
+  assert.deepEqual(manifest.optional_host_permissions, ['https://generativelanguage.googleapis.com/*', 'https://openrouter.ai/*', 'https://api.minimax.io/*']);
   assert.equal(manifest.host_permissions, undefined);
   for (const file of [...manifest.content_scripts[0].js, 'history.js', 'settings.js', 'ai.js', 'vault.js', 'background.js']) {
     new vm.Script(readFileSync(require.resolve('../' + file), 'utf8'), { filename: file });

@@ -1,7 +1,8 @@
 (function (root) {
   const providers = {
     gemini: { name: "Gemini", model: "gemini-3.5-flash-lite", origin: "https://generativelanguage.googleapis.com/*" },
-    openrouter: { name: "OpenRouter", model: "openrouter/free", origin: "https://openrouter.ai/*" }
+    openrouter: { name: "OpenRouter", model: "openrouter/free", origin: "https://openrouter.ai/*" },
+    minimax: { name: "MiniMax", model: "MiniMax-M3.1-Flash", origin: "https://api.minimax.io/*" }
   };
   function checkQuestion(input) {
     if (!input || !["single-choice", "ordering", "fill-gaps", "matching", "categorization"].includes(input.kind) ||
@@ -65,6 +66,13 @@
     const schema = { type: "OBJECT", properties: { answers: { type: "ARRAY", items: {
       type: "OBJECT", properties: { target: { type: "STRING" }, option: { type: "INTEGER" } }, required: ["target", "option"]
     } } }, required: ["answers"] };
+    if (provider === "minimax") return {
+      url: "https://api.minimax.io/v1/chat/completions",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: { model, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }],
+        max_completion_tokens: 8192, reasoning_split: true,
+        ...(model === "MiniMax-M3.1-Flash" ? { reasoning_effort: "low" } : model === "MiniMax-M3" ? { thinking: { type: "disabled" } } : {}) }
+    };
     return provider === "gemini" ? {
       url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -94,6 +102,7 @@
     }
     let body;
     try { body = await response.json(); } catch { throw new Error("El proveedor devolvió una respuesta ilegible."); }
+    if (settings.provider === "minimax" && body.choices?.[0]?.finish_reason === "length") throw new Error("MiniMax alcanzó el límite de respuesta. Puedes reintentar o cambiar de modelo.");
     const raw = settings.provider === "gemini" ? body.candidates?.[0]?.content?.parts?.filter(p => !p.thought).map(p => p.text || "").join("") : body.choices?.[0]?.message?.content;
     return parse(raw, question);
   }

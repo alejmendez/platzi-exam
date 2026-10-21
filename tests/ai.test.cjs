@@ -45,7 +45,7 @@ test('rechaza opciones inventadas, huecos faltantes, duplicados y parejas fuera 
 });
 
 test('los proveedores reciben la clave solo en cabeceras, y el prompt solo contiene el ejercicio', () => {
-  for (const provider of ['gemini', 'openrouter']) {
+  for (const provider of ['gemini', 'openrouter', 'minimax']) {
     const r = ai.request(provider, ai.providers[provider].model, 'test-key', { ...single, apiKey: 'discard-me', history: ['no enviar'], html: '<body>privado</body>' });
     assert.doesNotMatch(r.url, /test-key/);
     const body = JSON.stringify(r.body);
@@ -68,6 +68,25 @@ test('consulta ambos protocolos y normaliza las respuestas sin incluir explicaci
     });
     assert.deepEqual(result, [{ label: 'Respuesta sugerida: B', text: 'Dos' }]);
   }
+});
+
+test('MiniMax usa el token de suscripcion, admite ambos modelos y omite el razonamiento', async () => {
+  for (const model of ['MiniMax-M3.1-Flash', 'MiniMax-M3']) {
+    const result = await ai.suggest({ provider: 'minimax', model }, 'subscription-test-key', single, async (url, options) => {
+      assert.equal(url, 'https://api.minimax.io/v1/chat/completions');
+      assert.equal(options.headers.Authorization, 'Bearer subscription-test-key');
+      assert.equal(options.credentials, 'omit');
+      const body = JSON.parse(options.body);
+      assert.equal(body.model, model); assert.equal(body.max_completion_tokens, 8192);
+      assert.equal(body.reasoning_split, true); assert.equal(body.response_format, undefined);
+      if (model === 'MiniMax-M3.1-Flash') { assert.equal(body.reasoning_effort, 'low'); assert.equal(body.thinking, undefined); }
+      else assert.equal(body.thinking.type, 'disabled');
+      return { ok: true, json: async () => ({ choices: [{ finish_reason: 'stop', message: { reasoning_content: 'no mostrar', content: answer([{ target: 'answer', option: 3 }]) } }] }) };
+    });
+    assert.deepEqual(result, [{ label: 'Respuesta sugerida: C', text: 'Tres' }]);
+  }
+  await assert.rejects(ai.suggest({ provider: 'minimax', model: 'MiniMax-M3' }, 'test-key', single,
+    async () => ({ ok: true, json: async () => ({ choices: [{ finish_reason: 'length', message: { content: '' } }] }) })), /límite de respuesta/);
 });
 
 test('maneja clave ausente, cupo, autenticación, modelos y timeout sin filtrar respuestas del servidor', async () => {
@@ -107,6 +126,18 @@ test('las páginas de Platzi no pueden leer ni cambiar claves y el historial exp
   assert.equal((await h.send({ type: 'ai.suggest', question: single }, { url: 'https://example.com/evaluacion/test/', tab: { id: 1 } })).ok, false);
   assert.equal((await h.send({ type: 'ai.settings.deleteKey', provider: 'gemini' }, popup)).ok, true);
   assert.equal(h.keys.has('gemini'), false);
+});
+
+test('configura y elimina la clave MiniMax sin exponerla al examen ni a storage.local', async () => {
+  const h = background();
+  assert.equal((await h.send({ type: 'ai.settings.save', provider: 'minimax', model: 'MiniMax-M3.1-Flash', apiKey: 'subscription-test-key' }, popup)).ok, true);
+  const settings = await h.send({ type: 'ai.settings.get' }, popup);
+  assert.equal(settings.configured.minimax, true); assert.equal(settings.provider, 'minimax');
+  assert.doesNotMatch(JSON.stringify(h.local), /subscription-test-key/);
+  assert.doesNotMatch(JSON.stringify(settings), /subscription-test-key/);
+  assert.equal((await h.send({ type: 'ai.settings.get' }, exam)).ok, false);
+  assert.equal((await h.send({ type: 'ai.settings.deleteKey', provider: 'minimax' }, popup)).ok, true);
+  assert.equal(h.keys.has('minimax'), false);
 });
 
 test('el fondo admite una sola consulta simultánea por pestaña', async () => {

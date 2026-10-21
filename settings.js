@@ -26,7 +26,11 @@
     get("ai-model").value = models[provider] || providers[provider].model;
     get("ai-key").value = "";
     get("key-status").textContent = configured[provider] ? "Clave guardada. Deja el campo vacío para conservarla." : "Todavía no hay una clave guardada para este proveedor.";
-    get("model-hint").textContent = provider === "openrouter" ? "openrouter/free elige un modelo gratuito disponible." : "Puedes cambiar el identificador por otro modelo disponible en tu cuenta de Gemini.";
+    get("model-hint").textContent = provider === "minimax" ? "Elige MiniMax-M3.1-Flash o MiniMax-M3. La disponibilidad y el consumo dependen de tu plan." : provider === "openrouter" ? "openrouter/free elige un modelo gratuito disponible." : "Puedes cambiar el identificador por otro modelo disponible en tu cuenta de Gemini.";
+    get("minimax-hint").hidden = provider !== "minimax";
+    get("ai-models").replaceChildren(...(provider === "minimax" ? ["MiniMax-M3.1-Flash", "MiniMax-M3"] : []).map(model => {
+      const option = document.createElement("option"); option.value = model; return option;
+    }));
     get("ai-delete").disabled = !configured[provider];
   }
   function busy(value) { get("ai-save").disabled = value; get("ai-provider").disabled = value; get("ai-delete").disabled = value || !configured[get("ai-provider").value]; }

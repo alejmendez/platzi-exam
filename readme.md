@@ -78,7 +78,7 @@ Desde la carpeta del proyecto, ejecuta en PowerShell:
 
 Se genera `dist/platzi-exam-VERSION.zip`, tomando la versión de `manifest.json`. El paquete contiene únicamente los archivos necesarios de la extensión, con el manifiesto en la raíz. Excluye pruebas, documentación, Git y archivos locales de respaldo; tampoco contiene el historial ni las claves guardadas en Chrome. La carpeta `dist` no se sube a Git.
 
-## Alcance de la versión 0.4
+## Alcance de la versión 0.5
 
 - Solo se inyecta en `https://platzi.com/*` y `https://www.platzi.com/*`. Solo captura en rutas de examen reconocidas y con una pregunta reconocida.
 - Selección múltiple, ordenación con MagnetCards, conexión con MatchCards, rellenar afirmaciones con FillTheGap y clasificación con SwipeCards mediante botones o flechas del teclado. Conserva las secuencias y asociaciones, incluso incompletas.
@@ -99,7 +99,7 @@ Usa `chrome.storage.local`, separado del almacenamiento de la web. El historial 
 
 1. Recarga la extensión en `chrome://extensions` y la pestaña de Platzi para activar la nueva versión.
 2. Abre la extensión (icono de cuaderno con una marca verde) y entra en **Configuración**.
-3. Elige **Gemini** u **OpenRouter**, introduce tu API key y guarda. Para Gemini, usa el enlace **Generar o administrar mi API key de Gemini** debajo del campo de la clave, que abre [Google AI Studio](https://aistudio.google.com/api-keys?hl=es-419). Chrome pedirá permiso de conexión únicamente para el proveedor elegido. El campo queda vacío tras guardar; dejarlo vacío al actualizar conserva la clave existente.
+3. Elige **Gemini**, **OpenRouter** o **MiniMax (Token Plan)**, introduce tu API key y guarda. Para Gemini, usa el enlace **Generar o administrar mi API key de Gemini** debajo del campo de la clave, que abre [Google AI Studio](https://aistudio.google.com/api-keys?hl=es-419). Para MiniMax, sigue la sección siguiente. Chrome pedirá permiso de conexión únicamente para el proveedor elegido. El campo queda vacío tras guardar; dejarlo vacío al actualizar conserva la clave existente.
 4. En el panel flotante a la derecha, debajo de la cabecera del examen, pulsa **Sugerir con IA**. Usa **Contraer / Expandir** para ocultar o ver su contenido y arrastra su esquina inferior izquierda para ampliar o reducir el tamaño. Las respuestas largas tienen desplazamiento interno. La extensión envía solo el curso, enunciado, opciones y asociaciones de esa pregunta. Nunca selecciona ni envía respuestas por ti.
 
 La sugerencia muestra letra y texto en selección múltiple, posiciones en ordenación, palabras por hueco en afirmaciones y pares de textos en conexión o clasificación. No incluye explicaciones. Se comprueba que cada opción exista, que las parejas sean válidas y que no falten pasos. Si cambia la pregunta durante la consulta, la respuesta antigua se descarta.
@@ -107,6 +107,18 @@ La sugerencia muestra letra y texto en selección múltiple, posiciones en orden
 Los modelos iniciales son `gemini-3.5-flash-lite` y `openrouter/free`; puedes cambiarlos. La disponibilidad y el acceso gratuito dependen del proveedor, modelo y cuenta: [tarifas de Gemini](https://ai.google.dev/gemini-api/docs/pricing) y [router gratuito de OpenRouter](https://openrouter.ai/docs/guides/routing/routers/free-router). Las solicitudes usan las API documentadas de [Gemini](https://ai.google.dev/api/generate-content) y [OpenRouter](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request).
 
 Las claves se guardan en IndexedDB bajo el origen de la extensión, separado de los scripts que se ejecutan en Platzi y del historial. No se sincronizan ni se incluyen en las exportaciones. **Eliminar clave** quita la clave del proveedor seleccionado. El almacenamiento local no es una caja fuerte cifrada frente a alguien que controle tu perfil de Chrome.
+
+### MiniMax con Token Plan / M Plan
+
+1. Recarga la extensión, vuelve a abrir **Configuración** y selecciona **MiniMax (Token Plan)**.
+2. Obtén tu **Subscription Key** desde tu plan de MiniMax; hay un enlace junto al campo de la clave. Es la clave de suscripción que usas en herramientas como OpenCode, no una clave estándar de pago por uso. Pégala solo en la extensión.
+3. El modelo predeterminado es `MiniMax-M3.1-Flash`. El campo **Modelo** ofrece también `MiniMax-M3`.
+4. Pulsa **Guardar configuración** y acepta el permiso para conectar con `https://api.minimax.io/*`.
+5. Con la pestaña de Platzi actualizada, usa **Sugerir con IA** o activa las consultas automáticas. Si ya hay una sugerencia guardada de otro proveedor, pulsa **Volver a consultar IA** para reemplazarla con MiniMax.
+
+La integración usa `https://api.minimax.io/v1/chat/completions`, con autenticación Bearer y sin instalar un SDK. MiniMax documenta el uso de la clave de suscripción en [herramientas compatibles con OpenAI](https://platform.minimax.io/docs/m-plan/other-tools); sus [instrucciones del plan](https://platform.minimax.io/docs/m-plan/quickstart) distinguen esa clave de la de pago por uso. La disponibilidad y los límites dependen de tu suscripción. Solo está configurada la API global, no la regional de China.
+
+Para reducir la espera, M3.1 Flash usa razonamiento `low` y M3 usa respuesta directa sin razonamiento; ambos comportamientos están documentados en la [API de MiniMax](https://platform.minimax.io/docs/api-reference/text-openai-api). Solo se muestra el contenido final validado, no el razonamiento. La prueba automatizada simula ambos modelos; la conexión real requiere tu clave y queda pendiente hasta configurarla en la extensión.
 
 La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmados ni se guardan como respuestas del usuario. Las consultas tienen límite de salida y tiempo de espera, sin reintentos automáticos.
 

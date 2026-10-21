@@ -68,7 +68,9 @@ async function handle(message, sender) {
   if (!extensionPage(sender)) throw new Error("Esta acción solo está disponible en Configuración.");
   if (message.type === "ai.settings.get") {
     const settings = await configuration();
-    return { ...settings, configured: { gemini: Boolean(await PlatziVault.access("gemini", "get")), openrouter: Boolean(await PlatziVault.access("openrouter", "get")) } };
+    const configured = {};
+    for (const provider of Object.keys(PlatziAI.providers)) configured[provider] = Boolean(await PlatziVault.access(provider, "get"));
+    return { ...settings, configured };
   }
   if (message.type === "ai.settings.save") {
     const { provider, model, apiKey } = message;
