@@ -2,20 +2,34 @@
 
 Extensión personal de Chrome (Manifest V3), sin dependencias ni compilación.
 
-## Instalar
+## Instalar en Chrome paso a paso
 
-1. Abre `chrome://extensions` y activa **Modo de desarrollador**.
-2. Elige **Cargar descomprimida** y selecciona `C:\alejmendez\dev\platzi-exam`.
-3. Recarga la pestaña de Platzi para iniciar la captura. Si hay un examen en curso, espera a un momento adecuado: recargar podría afectar el intento.
-4. Abre la extensión desde el menú de extensiones. Muestra estado, pausa, historial, búsqueda y exportación JSON.
+No necesitas instalar paquetes ni compilar el proyecto. Realiza estos pasos antes de iniciar un examen:
 
-Tras modificar archivos, pulsa **Recargar** en la tarjeta de la extensión y recarga Platzi. Los registros existentes se conservan al recargar la extensión.
+1. Ten el proyecto en una carpeta local. En este equipo está en `C:\alejmendez\dev\platzi-exam`. Si recibiste un ZIP, extráelo primero.
+2. Abre Chrome con el perfil donde utilizas Platzi.
+3. Escribe `chrome://extensions` en la barra de direcciones y pulsa **Enter**.
+4. Activa **Modo de desarrollador**, en la esquina superior derecha.
+5. Pulsa **Cargar descomprimida** y selecciona la carpeta que contiene `manifest.json`, no un archivo individual ni la carpeta `icons`.
+6. Comprueba que aparezca **Platzi · Mi historial de exámenes** y que su interruptor esté activado. Conserva la carpeta en su ubicación: Chrome carga la extensión desde allí.
+7. Abre el menú de extensiones de Chrome (icono de pieza de rompecabezas) y fija la extensión con la chincheta para tenerla a mano.
+8. Pulsa su icono para abrir el historial. Desde allí puedes pausar la captura, buscar, exportar JSON y entrar en **Configuración**. **Abrir historial** muestra la interfaz en una pestaña completa.
+9. Abre Platzi o recarga una pestaña de Platzi que ya estuviera abierta; después entra al examen. El panel de historial aparece cuando se reconoce una pregunta. La captura funciona sin configurar IA.
+
+### Actualizar una instalación existente
+
+1. Guarda los cambios del proyecto en la misma carpeta usada al instalar.
+2. En `chrome://extensions`, busca la tarjeta de la extensión y pulsa **Recargar** (flecha circular).
+3. Cierra y vuelve a abrir el popup o recarga la pestaña del historial para ver los cambios de su interfaz.
+4. Para aplicar cambios al panel y a la captura, recarga también la pestaña de Platzi, preferiblemente antes de iniciar un examen. Recargar solo la extensión no actualiza los scripts de una pestaña ya abierta.
+
+Recargar conserva el historial y las claves guardadas. No hace falta desinstalar ni volver a cargar la carpeta; desinstalar elimina los datos de la extensión. En las pruebas, recargar y reanudar un examen hizo que Platzi dejara de mostrar sus indicadores nativos de tiempo, vidas y progreso, incluso con la extensión desactivada.
 
 ## Alcance de la versión 0.3
 
 - Solo se inyecta en `https://platzi.com/*` y `https://www.platzi.com/*`. Solo captura en rutas de examen reconocidas y con una pregunta reconocida.
 - Selección múltiple, ordenación con MagnetCards, conexión con MatchCards, rellenar afirmaciones con FillTheGap y clasificación con SwipeCards mediante botones o flechas del teclado. Conserva las secuencias y asociaciones, incluso incompletas.
-- Muestra un aviso HTML bajo el enunciado con tu historial para esa pregunta: respuestas correctas, respuestas que NO fueron correctas y registros sin confirmar. Identifica por curso, enunciado, formato y opciones, aunque las opciones cambien de orden.
+- Muestra un panel flotante a la derecha, debajo de la cabecera, con tu historial para esa pregunta: respuestas correctas, respuestas que NO fueron correctas y registros sin confirmar. Identifica por curso, enunciado, formato y opciones, aunque las opciones cambien de orden.
 - Guarda al seleccionar; observa el feedback HTML «¡Correcto!», la opción marcada con error y los anuncios de clasificación por tarjeta. Los contadores de aciertos y vidas siguen siendo una señal adicional. Cada resultado conserva su evidencia; si falta, queda **Sin confirmar**.
 - Distingue resultados por paso y de la pregunta completa. Un fallo global de una combinación no convierte cada parte de ella en incorrecta.
 - Una pregunta no contestada no genera registro; **Saltar** registra **Omitida**.
@@ -32,7 +46,7 @@ Usa `chrome.storage.local`, separado del almacenamiento de la web. El historial 
 
 1. Recarga la extensión en `chrome://extensions` y la pestaña de Platzi para activar la nueva versión.
 2. Abre la extensión (icono de cuaderno con una marca verde) y entra en **Configuración**.
-3. Elige **Gemini** u **OpenRouter**, introduce tu API key y guarda. Chrome pedirá permiso de conexión únicamente para ese proveedor. El campo queda vacío tras guardar; dejarlo vacío al actualizar conserva la clave existente.
+3. Elige **Gemini** u **OpenRouter**, introduce tu API key y guarda. Para Gemini, usa el enlace **Generar o administrar mi API key de Gemini** debajo del campo de la clave, que abre [Google AI Studio](https://aistudio.google.com/api-keys?hl=es-419). Chrome pedirá permiso de conexión únicamente para el proveedor elegido. El campo queda vacío tras guardar; dejarlo vacío al actualizar conserva la clave existente.
 4. En el panel flotante a la derecha, debajo de la cabecera del examen, pulsa **Sugerir con IA**. Usa **Contraer / Expandir** para ocultar o ver su contenido y arrastra su esquina inferior izquierda para ampliar o reducir el tamaño. Las respuestas largas tienen desplazamiento interno. La extensión envía solo el curso, enunciado, opciones y asociaciones de esa pregunta. Nunca selecciona ni envía respuestas por ti.
 
 La sugerencia muestra letra y texto en selección múltiple, posiciones en ordenación, palabras por hueco en afirmaciones y pares de textos en conexión o clasificación. No incluye explicaciones. Se comprueba que cada opción exista, que las parejas sean válidas y que no falten pasos. Si cambia la pregunta durante la consulta, la respuesta antigua se descarta.
@@ -45,7 +59,7 @@ La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmado
 
 La versión 0.3.2 separa el panel de los contenedores con recorte de Platzi. Se verificaron en Chrome una sugerencia real de Gemini, contraer/expandir y ampliar/reducir el panel. El tamaño elegido se conserva al actualizar la sugerencia o contraer/expandir durante esa página.
 
-La versión 0.3.3 reserva espacio superior para no superponer el panel a la cabecera nativa ni a su botón de cerrar. En la prueba del examen de Entorno en Linux, los indicadores también faltaban con la extensión desactivada y al reabrir desde el curso. No existen elementos ocultos de tiempo/vidas que recuperar en esa sesión. Tras agotar el intento para probar uno nuevo, Platzi impuso una espera de unos 30 minutos; la recuperación de esos indicadores en un intento nuevo queda pendiente. La extensión no inventa el tiempo ni las vidas ausentes.
+La versión 0.3.3 reserva espacio superior para no superponer el panel a la cabecera nativa ni a su botón de cerrar; su posición se comprobó en el examen de Verbo To Be. En ese examen, tiempo, vidas y progreso estaban visibles antes de recargar, pero desaparecieron al recargar y reanudar, y no regresaron al avanzar una pregunta. En Entorno en Linux también faltaban con la extensión desactivada y al reabrir desde el curso. La corrección del panel no restaura los indicadores que Platzi deja de generar. Recuperarlos en un intento afectado sigue pendiente; la extensión no inventa el tiempo ni las vidas ausentes. Al agotar el intento de Linux, Platzi impuso una espera de unos 30 minutos para repetirlo.
 
 El límite local habitual es 10 MB. Si una escritura falla, el estado de la extensión lo indica. Exporta periódicamente: desinstalar la extensión elimina sus datos. Los archivos JSON son respaldos consultables; esta versión no los importa.
 
