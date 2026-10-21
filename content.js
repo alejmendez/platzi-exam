@@ -43,9 +43,9 @@
       const shadow = panel.attachShadow({ mode: "open" });
       const style = document.createElement("style");
       style.textContent = `
-        :host{all:initial;display:block;position:fixed;right:16px;top:16px;z-index:2147483647;font:14px/1.5 system-ui,sans-serif;color:#edf5f1;text-align:left;color-scheme:dark}
+        :host{all:initial;--panel-top:clamp(16px,160px,calc(100dvh - 176px));display:block;position:fixed;right:16px;top:var(--panel-top);z-index:2147483647;font:14px/1.5 system-ui,sans-serif;color:#edf5f1;text-align:left;color-scheme:dark}
         *{box-sizing:border-box}
-        .window{display:flex;flex-direction:column;direction:rtl;width:min(400px,calc(100vw - 32px));height:min(440px,calc(100dvh - 32px));min-width:min(260px,calc(100vw - 32px));min-height:min(160px,calc(100dvh - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);resize:both;overflow:hidden;background:#122b27;border:1px solid #427369;border-radius:12px;box-shadow:0 8px 32px #0008}
+        .window{display:flex;flex-direction:column;direction:rtl;width:min(400px,calc(100vw - 32px));height:min(440px,calc(100dvh - var(--panel-top) - 16px));min-width:min(260px,calc(100vw - 32px));min-height:min(160px,calc(100dvh - var(--panel-top) - 16px));max-width:calc(100vw - 32px);max-height:calc(100dvh - var(--panel-top) - 16px);resize:both;overflow:hidden;background:#122b27;border:1px solid #427369;border-radius:12px;box-shadow:0 8px 32px #0008}
         header,.body{direction:ltr}
         .window[data-collapsed="true"]{width:240px!important;height:auto!important;min-width:0;min-height:0;resize:none}
         header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #427369;flex:none}

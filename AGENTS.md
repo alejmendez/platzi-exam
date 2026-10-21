@@ -22,6 +22,7 @@
 - Configuración admite Gemini y OpenRouter. Guardar las API keys solo en el origen privado de la extensión; nunca en el DOM de Platzi, prompts, logs ni exportaciones del historial.
 - Enviar al proveedor elegido solo el curso, enunciado, opciones y asociaciones necesarias para resolver la pregunta actual. Mostrar respuestas breves sin explicaciones y separadas de los resultados confirmados.
 - Mostrar historial y sugerencias en un panel flotante contraíble y redimensionable, fuera de la tarjeta del examen para evitar el recorte de los contenedores de Platzi.
+- Reservar espacio para la cabecera nativa de Platzi: el panel no debe tapar tiempo, vidas, progreso ni el botón de cerrar.
 
 ## Efficiency and scope
 

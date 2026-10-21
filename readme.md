@@ -33,7 +33,7 @@ Usa `chrome.storage.local`, separado del almacenamiento de la web. El historial 
 1. Recarga la extensión en `chrome://extensions` y la pestaña de Platzi para activar la nueva versión.
 2. Abre la extensión (icono de cuaderno con una marca verde) y entra en **Configuración**.
 3. Elige **Gemini** u **OpenRouter**, introduce tu API key y guarda. Chrome pedirá permiso de conexión únicamente para ese proveedor. El campo queda vacío tras guardar; dejarlo vacío al actualizar conserva la clave existente.
-4. En el panel flotante de la esquina superior derecha del examen, pulsa **Sugerir con IA**. Usa **Contraer / Expandir** para ocultar o ver su contenido y arrastra su esquina inferior izquierda para ampliar o reducir el tamaño. Las respuestas largas tienen desplazamiento interno. La extensión envía solo el curso, enunciado, opciones y asociaciones de esa pregunta. Nunca selecciona ni envía respuestas por ti.
+4. En el panel flotante a la derecha, debajo de la cabecera del examen, pulsa **Sugerir con IA**. Usa **Contraer / Expandir** para ocultar o ver su contenido y arrastra su esquina inferior izquierda para ampliar o reducir el tamaño. Las respuestas largas tienen desplazamiento interno. La extensión envía solo el curso, enunciado, opciones y asociaciones de esa pregunta. Nunca selecciona ni envía respuestas por ti.
 
 La sugerencia muestra letra y texto en selección múltiple, posiciones en ordenación, palabras por hueco en afirmaciones y pares de textos en conexión o clasificación. No incluye explicaciones. Se comprueba que cada opción exista, que las parejas sean válidas y que no falten pasos. Si cambia la pregunta durante la consulta, la respuesta antigua se descarta.
 
@@ -44,6 +44,8 @@ Las claves se guardan en IndexedDB bajo el origen de la extensión, separado de 
 La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmados ni se guardan como respuestas del usuario. Cada consulta es manual, con límite de salida y tiempo de espera, sin reintentos automáticos.
 
 La versión 0.3.2 separa el panel de los contenedores con recorte de Platzi. Se verificaron en Chrome una sugerencia real de Gemini, contraer/expandir y ampliar/reducir el panel. El tamaño elegido se conserva al actualizar la sugerencia o contraer/expandir durante esa página.
+
+La versión 0.3.3 reserva espacio superior para no superponer el panel a la cabecera nativa ni a su botón de cerrar. En la prueba del examen de Entorno en Linux, los indicadores también faltaban con la extensión desactivada y al reabrir desde el curso. No existen elementos ocultos de tiempo/vidas que recuperar en esa sesión. Tras agotar el intento para probar uno nuevo, Platzi impuso una espera de unos 30 minutos; la recuperación de esos indicadores en un intento nuevo queda pendiente. La extensión no inventa el tiempo ni las vidas ausentes.
 
 El límite local habitual es 10 MB. Si una escritura falla, el estado de la extensión lo indica. Exporta periódicamente: desinstalar la extensión elimina sus datos. Los archivos JSON son respaldos consultables; esta versión no los importa.
 
