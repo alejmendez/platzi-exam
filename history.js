@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 const labels = { correct: "Correcta", incorrect: "Incorrecta", unknown: "Sin confirmar", skipped: "Omitida" };
 let records = [];
+let selectedCourse = null;
+const courseKey = record => (record.course || "Sin curso").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 function element(tag, value, className) {
   const node = document.createElement(tag);
   node.textContent = value;
@@ -8,11 +10,35 @@ function element(tag, value, className) {
   return node;
 }
 function render() {
-  const query = $("search").value.toLocaleLowerCase();
-  const shown = records.filter(r => [r.course, r.question, ...r.selected].join(" ").toLocaleLowerCase().includes(query));
-  $("summary").textContent = `${shown.length} respuestas · ${records.filter(r => r.result === "correct").length} correctas · ${records.filter(r => r.result === "incorrect").length} incorrectas`;
+  const query = $("search").value.trim().toLocaleLowerCase();
+  const courses = new Map();
+  for (const record of records) {
+    const key = courseKey(record);
+    if (!courses.has(key)) courses.set(key, { name: record.course || "Sin curso", answers: [] });
+    courses.get(key).answers.push(record);
+  }
+  if (selectedCourse !== null && !courses.has(selectedCourse)) selectedCourse = null;
+  $("back-courses").hidden = selectedCourse === null && !query;
   $("records").replaceChildren();
-  if (!shown.length) $("records").append(element("p", "Todavía no hay respuestas para mostrar."));
+  if (!query && selectedCourse === null) {
+    $("history-heading").textContent = "Cursos";
+    $("summary").textContent = `${courses.size} cursos`;
+    if (!courses.size) $("records").append(element("p", "Todavía no hay respuestas para mostrar."));
+    for (const [key, course] of courses) {
+      const button = element("button", "", "course-card");
+      button.type = "button";
+      button.append(element("h2", course.name), element("span", `${course.answers.length} respuestas · Ver preguntas`));
+      button.addEventListener("click", () => { selectedCourse = key; render(); });
+      $("records").append(button);
+    }
+    return;
+  }
+  const shown = query
+    ? records.filter(r => [r.course, r.question, ...r.selected].join(" ").toLocaleLowerCase().includes(query))
+    : courses.get(selectedCourse).answers;
+  $("history-heading").textContent = query ? "Resultados en todos los cursos" : courses.get(selectedCourse).name;
+  $("summary").textContent = `${shown.length} respuestas · ${shown.filter(r => r.result === "correct").length} correctas · ${shown.filter(r => r.result === "incorrect").length} incorrectas`;
+  if (!shown.length) $("records").append(element("p", "No hay respuestas que coincidan con la búsqueda."));
   for (const record of shown) {
     const card = document.createElement("article");
     card.append(element("small", `${record.course} · ${new Date(record.capturedAt).toLocaleString()}`),
@@ -38,6 +64,11 @@ $("enabled").addEventListener("change", async () => {
   catch { $("status").textContent = "No se pudo cambiar la captura."; }
 });
 $("search").addEventListener("input", render);
+$("back-courses").addEventListener("click", () => {
+  selectedCourse = null;
+  $("search").value = "";
+  render();
+});
 $("open").addEventListener("click", () => chrome.tabs.create({ url: chrome.runtime.getURL("history.html") }));
 $("export").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }));

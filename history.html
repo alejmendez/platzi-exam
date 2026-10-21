@@ -11,7 +11,9 @@
   <section id="page-history" role="tabpanel" aria-labelledby="tab-history">
   <nav><label><input type="checkbox" id="enabled"> Guardar respuestas</label><button id="export">Exportar JSON</button><button id="open">Abrir historial</button></nav>
   <p class="hint">Solo registra lo que respondes en Platzi. «Sin confirmar» significa que no se observó un resultado. Los datos permanecen en este navegador.</p>
-  <label>Buscar <input type="search" id="search" placeholder="Curso, pregunta o respuesta"></label>
+  <label>Buscar en todos los cursos <input type="search" id="search" placeholder="Curso, pregunta o respuesta"></label>
+  <div class="actions"><button id="back-courses" type="button" hidden>← Todos los cursos</button></div>
+  <h2 id="history-heading">Cursos</h2>
   <p id="summary"></p><main id="records"></main>
   </section>
   <section id="page-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
