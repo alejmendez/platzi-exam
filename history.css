@@ -1,0 +1,11 @@
+:root { color-scheme: dark; font: 14px/1.5 system-ui, sans-serif; background: #101820; color: #edf5f1; }
+body { min-width: 380px; max-width: 960px; margin: auto; padding: 24px; }
+h1 { font-size: 24px; margin: 4px 0; } h2 { font-size: 16px; }
+.eyebrow { color: #0aeb8b; font-size: 11px; letter-spacing: .12em; }
+nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 20px 0; }
+button, input[type="search"] { border: 1px solid #43505b; border-radius: 8px; padding: 9px 12px; background: #21303c; color: inherit; }
+button { cursor: pointer; } button:hover { border-color: #0aeb8b; }
+input[type="search"] { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; }
+.hint, small, #summary { color: #b1c1cd; } article { background: #182530; border: 1px solid #34434f; border-radius: 12px; padding: 16px; margin: 14px 0; }
+.result { font-weight: 700; } .correct { color: #0aeb8b; } .incorrect { color: #ff9797; } .unknown, .skipped { color: #ffce83; }
+p, h2, li { overflow-wrap: anywhere; } .selected { font-weight: 700; color: #c4f3df; }

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mi historial de Platzi</title><link rel="stylesheet" href="history.css"></head>
+<body>
+  <header><p class="eyebrow">PLATZI · RESPALDO PERSONAL</p><h1>Mi historial de exámenes</h1><p id="status" role="status">Consultando captura…</p></header>
+  <nav><label><input type="checkbox" id="enabled"> Guardar respuestas</label><button id="export">Exportar JSON</button><button id="open">Abrir historial</button></nav>
+  <p class="hint">Solo registra lo que respondes en Platzi. «Sin confirmar» significa que no se observó un resultado. Los datos permanecen en este navegador.</p>
+  <label>Buscar <input type="search" id="search" placeholder="Curso, pregunta o respuesta"></label>
+  <p id="summary"></p><main id="records"></main>
+  <script src="core.js"></script><script src="history.js"></script>
+</body></html>

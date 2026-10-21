@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Platzi · Mi historial de exámenes",
+  "version": "0.2.0",
+  "description": "Respaldo personal de preguntas, respuestas y resultados observables en Platzi.",
+  "permissions": ["storage"],
+  "action": { "default_popup": "history.html", "default_title": "Mi historial de Platzi" },
+  "content_scripts": [{
+    "matches": ["https://platzi.com/*", "https://www.platzi.com/*"],
+    "js": ["core.js", "content.js"],
+    "run_at": "document_idle"
+  }]
+}
