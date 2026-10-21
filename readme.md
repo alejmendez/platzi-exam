@@ -78,7 +78,7 @@ Desde la carpeta del proyecto, ejecuta en PowerShell:
 
 Se genera `dist/platzi-exam-VERSION.zip`, tomando la versión de `manifest.json`. El paquete contiene únicamente los archivos necesarios de la extensión, con el manifiesto en la raíz. Excluye pruebas, documentación, Git y archivos locales de respaldo; tampoco contiene el historial ni las claves guardadas en Chrome. La carpeta `dist` no se sube a Git.
 
-## Alcance de la versión 0.5
+## Alcance de la versión 0.6
 
 - Solo se inyecta en `https://platzi.com/*` y `https://www.platzi.com/*`. Solo captura en rutas de examen reconocidas y con una pregunta reconocida.
 - Selección múltiple, ordenación con MagnetCards, conexión con MatchCards, rellenar afirmaciones con FillTheGap y clasificación con SwipeCards mediante botones o flechas del teclado. Conserva las secuencias y asociaciones, incluso incompletas.
@@ -118,6 +118,8 @@ Las claves se guardan en IndexedDB bajo el origen de la extensión, separado de 
 
 La integración usa `https://api.minimax.io/v1/chat/completions`, con autenticación Bearer y sin instalar un SDK. MiniMax documenta el uso de la clave de suscripción en [herramientas compatibles con OpenAI](https://platform.minimax.io/docs/m-plan/other-tools); sus [instrucciones del plan](https://platform.minimax.io/docs/m-plan/quickstart) distinguen esa clave de la de pago por uso. La disponibilidad y los límites dependen de tu suscripción. Solo está configurada la API global, no la regional de China.
 
+Desde 0.6.1, Configuración muestra **Proveedor activo** con el modelo guardado. Conservar claves de Gemini y MiniMax no activa ambos: se usa el proveedor del último guardado. Cambiar el desplegable sin guardar no cambia el proveedor activo. El panel de Platzi distingue **Proveedor activo para nuevas consultas** del proveedor y modelo que generaron la sugerencia mostrada. Una sugerencia guardada o recibida antes de cambiar de proveedor puede seguir identificada como Gemini; **Volver a consultar IA** genera otra con la configuración activa, sin borrar las claves de otros proveedores.
+
 Para reducir la espera, M3.1 Flash usa razonamiento `low` y M3 usa respuesta directa sin razonamiento; ambos comportamientos están documentados en la [API de MiniMax](https://platform.minimax.io/docs/api-reference/text-openai-api). Solo se muestra el contenido final validado, no el razonamiento. La prueba automatizada simula ambos modelos; la conexión real requiere tu clave y queda pendiente hasta configurarla en la extensión.
 
 La IA puede equivocarse; sus sugerencias no se convierten en aciertos confirmados ni se guardan como respuestas del usuario. Las consultas tienen límite de salida y tiempo de espera, sin reintentos automáticos.
@@ -136,7 +138,18 @@ Desde la versión 0.4.2, cada consulta espera hasta 90 segundos, en lugar de 25.
 
 ### Limpiar preguntas y sugerencias
 
-En **Configuración → Limpiar datos**, pulsa **Eliminar historial y sugerencias** y confirma. Borra todas las respuestas y sugerencias guardadas, conservando las API keys, la configuración y el estado de captura. Es irreversible: exporta antes el historial si lo necesitas. Una consulta de IA que estuviera pendiente se descarta para no volver a guardar sus resultados tras la limpieza. La pregunta visible no se consulta automáticamente de nuevo como efecto de limpiar; las siguientes preguntas vuelven a evaluarse normalmente.
+En **Configuración → Limpiar datos**, pulsa **Eliminar historial y sugerencias** y confirma. Borra todas las respuestas, sugerencias y diagnósticos guardados, conservando las API keys, la configuración y el estado de captura. Es irreversible: exporta antes el historial si lo necesitas. Una consulta de IA que estuviera pendiente se descarta para no volver a guardar sus resultados tras la limpieza. La pregunta visible no se consulta automáticamente de nuevo como efecto de limpiar; las siguientes preguntas vuelven a evaluarse normalmente.
+
+### Diagnóstico de consultas a la API
+
+Desde la versión 0.6.0, abre la pestaña **Diagnóstico API** del popup o del historial. **Abrir en pestaña** permite revisar los detalles con más espacio. No hace falta abrir las herramientas de desarrollo de Chrome.
+
+- **Fetch invocado:** la extensión llamó a `fetch` con la solicitud mostrada. No demuestra por sí solo que el servidor la haya recibido.
+- **HTTP:** estado real recibido del proveedor. Si no hay respuesta HTTP, el registro lo indica; también muestra errores, cancelaciones y duración.
+- **Caché reutilizada:** se mostró una sugerencia guardada sin una nueva consulta de red.
+- **Ver URL, cabeceras y parámetros enviados:** despliega método, URL y cuerpo JSON de la solicitud, incluidos prompts, opciones, modelo y límites. Las cabeceras de autenticación se sustituyen por `[OCULTA]` antes de guardar el registro. Las claves no se envían a esta interfaz.
+
+Los registros se actualizan mientras está abierta la pestaña y también puedes pulsar **Actualizar**. Se conservan los últimos 20, solo en este navegador; contienen el texto de las preguntas. No se guardan respuestas crudas ni razonamiento del proveedor y no se incluyen en el JSON del historial. **Limpiar diagnóstico** borra solo estos registros, conservando historial, caché, claves y ajustes. Las consultas previas a esta versión no se pueden reconstruir. Si Chrome interrumpe la extensión durante una consulta, un registro puede quedar sin resultado final; no debe interpretarse como una respuesta recibida.
 
 La versión 0.3.2 separa el panel de los contenedores con recorte de Platzi. Se verificaron en Chrome una sugerencia real de Gemini, contraer/expandir y ampliar/reducir el panel. El tamaño elegido se conserva al actualizar la sugerencia o contraer/expandir durante esa página.
 

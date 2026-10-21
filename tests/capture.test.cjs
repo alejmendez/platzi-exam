@@ -17,6 +17,20 @@ test('automático consulta una vez por pregunta y no reintenta errores por cambi
   assert.equal(calls.filter(message => message.type === 'ai.suggest').length, 2);
 });
 
+test('el panel distingue proveedor activo de proveedor y modelo de la sugerencia recibida', async () => {
+  const h = await harness({ aiSettings: { provider: 'minimax', model: 'MiniMax-M3' } });
+  const panel = h.created.find(node => node.tagName === 'aside');
+  const body = panel.shadowRoot.children[1].children[1];
+  assert.match(JSON.stringify(body.children), /Proveedor activo para nuevas consultas: MiniMax · MiniMax-M3/);
+  h.state.sendMessage = async () => ({ ok: true, lines: [{ label: 'Respuesta sugerida: A', text: 'Respuesta A' }], provider: 'Gemini', model: 'gemini-model' });
+  const button = h.created.find(node => node.tagName === 'button' && node.textContent === 'Sugerir con IA');
+  await button.click({ isTrusted: true });
+  assert.match(JSON.stringify(body.children), /Sugerencia de Gemini · gemini-model/);
+  h.change({ aiSettings: { newValue: { provider: 'openrouter', model: 'openrouter/free' } } });
+  assert.match(JSON.stringify(body.children), /Proveedor activo para nuevas consultas: OpenRouter · openrouter\/free/);
+  assert.match(JSON.stringify(body.children), /Sugerencia de Gemini · gemini-model/);
+});
+
 test('solo activa las rutas de examen y reconoce los contadores observados', () => {
   assert.equal(core.isExam('/evaluacion/123/'), true);
   assert.equal(core.isExam('/cursos/ingles/'), false);

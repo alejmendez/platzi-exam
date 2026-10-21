@@ -6,6 +6,7 @@
   <div class="tabs" role="tablist" aria-label="Secciones">
     <button id="tab-history" role="tab" aria-controls="page-history" aria-selected="true">Historial</button>
     <button id="tab-settings" role="tab" aria-controls="page-settings" aria-selected="false" tabindex="-1">Configuración</button>
+    <button id="tab-debug" role="tab" aria-controls="page-debug" aria-selected="false" tabindex="-1">Diagnóstico API</button>
   </div>
   <section id="page-history" role="tabpanel" aria-labelledby="tab-history">
   <nav><label><input type="checkbox" id="enabled"> Guardar respuestas</label><button id="export">Exportar JSON</button><button id="open">Abrir historial</button></nav>
@@ -15,6 +16,8 @@
   </section>
   <section id="page-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
     <h2>Sugerencias con IA</h2>
+    <p id="active-provider" role="status">Consultando proveedor activo…</p>
+    <p class="hint">Solo un proveedor está activo para consultas nuevas. Puedes conservar claves de varios proveedores. Elegir otro en el formulario no lo activa hasta pulsar Guardar configuración.</p>
     <p class="hint">En el examen, pulsa «Sugerir con IA» para enviar el enunciado y las opciones al proveedor elegido. La IA solo sugiere: tú eliges la respuesta.</p>
     <form id="ai-form">
       <label for="ai-provider">Proveedor</label>
@@ -36,9 +39,17 @@
     <p class="hint">La clave se guarda en este navegador y no se incluye en el JSON del historial. Las sugerencias pueden equivocarse y no se guardan como aciertos confirmados.</p>
     <p class="hint">El acceso gratuito depende del modelo y del cupo de tu cuenta. <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini</a> · <a href="https://openrouter.ai/openrouter/free" target="_blank" rel="noreferrer">OpenRouter Free</a></p>
     <h2>Limpiar datos</h2>
-    <p class="hint">Elimina todas las preguntas respondidas y las sugerencias de IA guardadas. Conserva tus claves y configuración. Exporta el historial antes si necesitas un respaldo.</p>
+    <p class="hint">Elimina todas las preguntas respondidas, las sugerencias de IA y los diagnósticos guardados. Conserva tus claves y configuración. Exporta el historial antes si necesitas un respaldo.</p>
     <button id="history-clear" type="button">Eliminar historial y sugerencias</button>
     <p id="purge-status" role="status" aria-live="polite"></p>
+  </section>
+  <section id="page-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
+    <h2>Consultas a la API</h2>
+    <p class="hint">Últimos 20 registros de esta versión. Distingue llamadas fetch de sugerencias reutilizadas desde caché. Un fetch invocado no garantiza recepción en el servidor: el estado HTTP confirma que hubo respuesta. No se guardan claves, respuestas sin validar ni razonamiento del modelo.</p>
+    <p class="hint">Los parámetros incluyen el enunciado y las opciones del examen. Solo se guardan en este navegador y no se incluyen al exportar el historial.</p>
+    <div class="actions"><button id="debug-refresh" type="button">Actualizar</button><button id="debug-clear" type="button">Limpiar diagnóstico</button><button id="debug-open" type="button">Abrir en pestaña</button></div>
+    <p id="debug-status" role="status" aria-live="polite"></p>
+    <div id="debug-records"></div>
   </section>
   <script src="core.js"></script><script src="ai.js"></script><script src="history.js"></script><script src="settings.js"></script>
 </body></html>

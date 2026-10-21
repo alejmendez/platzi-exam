@@ -13,6 +13,8 @@
   let route = location.pathname, attempt = crypto.randomUUID(), writes = Promise.resolve();
   const records = new Map();
   let autoSuggest = false, historyGeneration = 0;
+  let activeAI = { provider: "gemini", model: "gemini-3.5-flash-lite" };
+  const providerNames = { gemini: "Gemini", openrouter: "OpenRouter", minimax: "MiniMax" };
   const text = node => (node?.innerText || node?.textContent || "").trim();
   const all = (root, selector) => Array.from(root.querySelectorAll(selector));
   function questionText(container) {
@@ -37,7 +39,7 @@
     if (!enabled || !current) { removePanel(); return; }
     const previous = Array.from(records.values()).filter(r => r.id !== current.id && core.sameQuestion(r, { ...current, course }));
     const notes = previous.flatMap(core.notes);
-    const key = JSON.stringify([current.id, notes, error, current.ai]);
+    const key = JSON.stringify([current.id, notes, error, current.ai, activeAI]);
     if (key === panelKey && panel?.isConnected) return;
     if (!panel?.isConnected) {
       panel = document.createElement("aside"); panel.id = "platzi-history-note";
@@ -92,13 +94,15 @@
     }
     if (current.kind !== "unsupported") {
       const ai = document.createElement("div"); ai.className = "ai";
+      const configured = document.createElement("p"); configured.className = "ai-hint";
+      configured.textContent = `Proveedor activo para nuevas consultas: ${providerNames[activeAI.provider] || activeAI.provider}${activeAI.model ? ` · ${activeAI.model}` : ""}`;
       const button = document.createElement("button"); button.type = "button";
       button.textContent = current.ai?.loading ? "Consultando…" : current.ai?.lines ? "Volver a consultar IA" : "Sugerir con IA";
       button.disabled = Boolean(current.ai?.loading);
       button.addEventListener("click", requestSuggestion);
       const hint = document.createElement("p"); hint.className = "ai-hint";
-      hint.textContent = current.ai?.loading ? "Esperando al proveedor de IA. La consulta puede tardar hasta 90 segundos." : current.ai?.provider ? `Sugerencia ${current.ai.cached ? "guardada " : ""}de ${current.ai.provider} · Puede equivocarse.` : "Envía esta pregunta al proveedor configurado. La IA solo sugiere; tú seleccionas.";
-      ai.append(button, hint);
+      hint.textContent = current.ai?.loading ? "Esperando al proveedor de IA. La consulta puede tardar hasta 90 segundos." : current.ai?.provider ? `Sugerencia ${current.ai.cached ? "guardada " : ""}de ${current.ai.provider}${current.ai.model ? ` · ${current.ai.model}` : ""} · Puede equivocarse.` : "Envía esta pregunta al proveedor configurado. La IA solo sugiere; tú seleccionas.";
+      ai.append(configured, button, hint);
       if (current.ai?.error) { const p = document.createElement("p"); p.className = "ai-error"; p.textContent = current.ai.error; ai.append(p); }
       if (current.ai?.warning) { const p = document.createElement("p"); p.className = "ai-error"; p.textContent = current.ai.warning; ai.append(p); }
       for (const line of current.ai?.lines || []) {
@@ -127,7 +131,7 @@
     try {
       const response = await chrome.runtime.sendMessage({ type: "ai.cached", question: aiQuestion(owner) });
       if (current !== owner || !enabled || generation !== historyGeneration || owner.ai) return;
-      if (response?.ok && response.lines) { owner.ai = { lines: response.lines, provider: response.provider, cached: true }; renderPanel(); }
+      if (response?.ok && response.lines) { owner.ai = { lines: response.lines, provider: response.provider, model: response.model, cached: true }; renderPanel(); }
       else if (autoSuggest && !Array.from(records.values()).some(record => record.selected?.length && core.sameQuestion(record, aiQuestion(owner)))) await suggest(true);
     } catch { /* Manual suggestions remain available if the extension was reloaded. */ }
   }
@@ -138,7 +142,7 @@
     try {
       const response = await chrome.runtime.sendMessage({ type: "ai.suggest", auto: automatic, question: aiQuestion(owner) });
       if (current !== owner || location.pathname !== path || !enabled || generation !== historyGeneration) return;
-      owner.ai = response?.skipped ? undefined : response?.ok ? { lines: response.lines, provider: response.provider, cached: response.cached, warning: response.warning } : { error: response?.error || "No se pudo consultar. Abre Configuración en la extensión." };
+      owner.ai = response?.skipped ? undefined : response?.ok ? { lines: response.lines, provider: response.provider, model: response.model, cached: response.cached, warning: response.warning } : { error: response?.error || "No se pudo consultar. Abre Configuración en la extensión." };
     } catch {
       if (current !== owner || location.pathname !== path || !enabled || generation !== historyGeneration) return;
       owner.ai = { error: "No se pudo consultar. Recarga la extensión y la pestaña de Platzi." };
@@ -289,6 +293,7 @@
     for (const [key, value] of Object.entries(data)) if (key.startsWith("answer:")) records.set(value.id, value);
     enabled = data.enabled !== false;
     autoSuggest = data.aiSettings?.autoSuggest === true;
+    if (data.aiSettings?.provider) activeAI = { provider: data.aiSettings.provider, model: data.aiSettings.model };
     const observer = new MutationObserver(mutations => {
       if (mutations.every(m => m.target === panel || panel?.contains(m.target))) return;
       scan();
@@ -304,6 +309,7 @@
       if (current) { current.record = null; current.ai = undefined; current.aiChecked = true; current.id = crypto.randomUUID(); }
     }
     if (changes.aiSettings) {
+      activeAI = changes.aiSettings.newValue || { provider: "gemini", model: "gemini-3.5-flash-lite" };
       autoSuggest = changes.aiSettings.newValue?.autoSuggest === true;
       if (current && !current.ai) current.aiChecked = false;
       prepareSuggestion();

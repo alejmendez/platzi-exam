@@ -102,7 +102,7 @@ function background() {
   let listener;
   const keys = new Map(), local = {};
   const context = {
-    URL, AbortController, crypto: require('node:crypto').webcrypto, TextEncoder, importScripts() {}, PlatziAI: { ...ai }, PlatziHistory: require('../core.js'),
+    URL, AbortController, DOMException, fetch: async () => { throw new Error('Network must be mocked'); }, crypto: require('node:crypto').webcrypto, TextEncoder, importScripts() {}, PlatziAI: { ...ai }, PlatziHistory: require('../core.js'),
     PlatziVault: { async access(provider, operation, value) { if (operation === 'put') keys.set(provider, value); if (operation === 'delete') keys.delete(provider); return keys.get(provider); } },
     chrome: { runtime: { getURL: path => `chrome-extension://test/${path}`, onMessage: { addListener(fn) { listener = fn; } } },
       storage: { local: { get: async () => local, set: async data => Object.assign(local, data), remove: async keys => keys.forEach(key => delete local[key]) } },
@@ -138,6 +138,90 @@ test('configura y elimina la clave MiniMax sin exponerla al examen ni a storage.
   assert.equal((await h.send({ type: 'ai.settings.get' }, exam)).ok, false);
   assert.equal((await h.send({ type: 'ai.settings.deleteKey', provider: 'minimax' }, popup)).ok, true);
   assert.equal(h.keys.has('minimax'), false);
+});
+
+test('guardar ajustes con clave vacia conserva la clave de cada proveedor y solo una nueva la reemplaza', async () => {
+  const h = background();
+  for (const provider of Object.keys(ai.providers)) {
+    const save = apiKey => h.send({ type: 'ai.settings.save', provider, model: ai.providers[provider].model, apiKey, autoSuggest: true }, popup);
+    assert.equal((await save('')).ok, false);
+    assert.equal((await save(`original-${provider}`)).ok, true);
+    assert.equal((await save('')).ok, true);
+    assert.equal(h.keys.get(provider), `original-${provider}`);
+    assert.equal((await save('   ')).ok, true);
+    assert.equal(h.keys.get(provider), `original-${provider}`);
+    assert.equal((await h.send({ type: 'ai.settings.get' }, popup)).configured[provider], true);
+    assert.equal((await save(`replacement-${provider}`)).ok, true);
+    assert.equal(h.keys.get(provider), `replacement-${provider}`);
+  }
+  assert.equal(h.keys.size, Object.keys(ai.providers).length);
+});
+
+test('diagnostico registra fetch real, parametros y HTTP sin guardar credenciales ni razonamiento', async () => {
+  const h = background(); let calls = 0;
+  h.keys.set('minimax', 'secret-subscription-key'); h.local.aiSettings = { provider: 'minimax', model: 'MiniMax-M3.1-Flash' };
+  h.context.fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, 'https://api.minimax.io/v1/chat/completions');
+    assert.equal(options.headers.Authorization, 'Bearer secret-subscription-key');
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { reasoning_content: 'private-reasoning', content: answer([{ target: 'answer', option: 2 }]) } }] }) };
+  };
+  assert.equal((await h.send({ type: 'ai.suggest', question: single }, exam)).ok, true);
+  let result = await h.send({ type: 'ai.debug.list' }, popup);
+  assert.equal(result.entries.length, 1);
+  const entry = result.entries[0];
+  assert.equal(entry.fetchInvoked, true); assert.equal(entry.httpStatus, 200);
+  assert.equal(entry.body.model, 'MiniMax-M3.1-Flash'); assert.equal(entry.method, 'POST');
+  assert.equal(entry.headers.Authorization, '[OCULTA]'); assert.ok(entry.durationMs >= 0);
+  assert.doesNotMatch(JSON.stringify(result), /secret-subscription-key|private-reasoning/);
+  assert.equal((await h.send({ type: 'ai.debug.list' }, exam)).ok, false);
+  assert.equal((await h.send({ type: 'ai.debug.clear' }, exam)).ok, false);
+  await h.send({ type: 'ai.cached', question: single }, exam);
+  result = await h.send({ type: 'ai.debug.list' }, popup);
+  assert.equal(result.entries.some(item => item.kind === 'cache'), true); assert.equal(calls, 1);
+});
+
+test('diagnostico distingue timeout sin HTTP, error HTTP y bloqueo antes de fetch', async () => {
+  const h = background();
+  await h.send({ type: 'ai.suggest', question: single }, exam);
+  let result = await h.send({ type: 'ai.debug.list' }, popup);
+  assert.equal(result.entries[0].fetchInvoked, false);
+  h.keys.set('gemini', 'secret-key');
+  h.context.fetch = async () => { throw { name: 'TimeoutError', message: 'secret-key' }; };
+  await h.send({ type: 'ai.suggest', question: single }, exam);
+  result = await h.send({ type: 'ai.debug.list' }, popup);
+  const timeout = result.entries.find(entry => entry.error?.includes('90 segundos'));
+  assert.equal(timeout.fetchInvoked, true); assert.equal(timeout.httpStatus, undefined);
+  h.context.fetch = async () => ({ ok: false, status: 429 });
+  await h.send({ type: 'ai.suggest', question: single }, exam);
+  result = await h.send({ type: 'ai.debug.list' }, popup);
+  assert.equal(result.entries.find(entry => entry.httpStatus === 429).state, 'Error');
+  assert.doesNotMatch(JSON.stringify(result), /secret-key/);
+});
+
+test('diagnostico limita a 20 registros y limpiar no elimina cache ni claves', async () => {
+  const h = background(); h.keys.set('gemini', 'test-key');
+  h.context.PlatziAI.suggest = async () => [{ label: 'Respuesta sugerida: A', text: 'Uno' }];
+  await h.send({ type: 'ai.suggest', question: single }, exam);
+  for (let i = 0; i < 22; i++) await h.send({ type: 'ai.cached', question: single }, exam);
+  assert.equal((await h.send({ type: 'ai.debug.list' }, popup)).entries.length, 20);
+  assert.equal((await h.send({ type: 'ai.debug.clear' }, popup)).ok, true);
+  assert.equal((await h.send({ type: 'ai.debug.list' }, popup)).entries.length, 0);
+  assert.equal(h.keys.get('gemini'), 'test-key');
+  assert.equal(Object.keys(h.local).some(key => key.startsWith('ai-cache:')), true);
+});
+
+test('guardar MiniMax como activo usa su clave y modelo aunque Gemini tambien tenga clave', async () => {
+  const h = background(); let used;
+  await h.send({ type: 'ai.settings.save', provider: 'gemini', model: ai.providers.gemini.model, apiKey: 'gemini-key' }, popup);
+  await h.send({ type: 'ai.settings.save', provider: 'minimax', model: 'MiniMax-M3', apiKey: 'minimax-key' }, popup);
+  h.context.PlatziAI.suggest = async (settings, key) => { used = { provider: settings.provider, model: settings.model, key }; return [{ label: 'Respuesta sugerida: A', text: 'Uno' }]; };
+  const result = await h.send({ type: 'ai.suggest', question: single }, exam);
+  assert.deepEqual(used, { provider: 'minimax', model: 'MiniMax-M3', key: 'minimax-key' });
+  assert.equal(result.provider, 'MiniMax'); assert.equal(result.model, 'MiniMax-M3');
+  const cached = await h.send({ type: 'ai.cached', question: single }, exam);
+  assert.equal(cached.provider, 'MiniMax'); assert.equal(cached.model, 'MiniMax-M3');
+  assert.equal(h.keys.get('gemini'), 'gemini-key');
 });
 
 test('el fondo admite una sola consulta simultánea por pestaña', async () => {

@@ -12,6 +12,9 @@ p, h2, li { overflow-wrap: anywhere; } .selected { font-weight: 700; color: #c4f
 [hidden] { display: none !important; }
 .brand { display: flex; align-items: center; gap: 12px; } .brand .eyebrow { margin: 0; }
 .tabs { display: flex; gap: 8px; margin: 16px 0; border-bottom: 1px solid #34434f; padding-bottom: 12px; }
+.tabs { flex-wrap: wrap; }
+#debug-records pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; background: #101820; padding: 12px; border-radius: 8px; }
+#debug-records summary { cursor: pointer; color: #81f5b7; }
 .tabs [aria-selected="true"] { color: #0aeb8b; border-color: #0aeb8b; }
 #ai-form label { display: block; margin: 16px 0 6px; }
 #ai-form select, #ai-form input { width: 100%; box-sizing: border-box; border: 1px solid #43505b; border-radius: 8px; padding: 10px; color: inherit; background: #182530; font: inherit; }
