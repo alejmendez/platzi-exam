@@ -55,16 +55,11 @@ El flujo [Empaquetar extensión](.github/workflows/package.yml) se ejecuta al su
 ### Publicar una versión descargable
 
 1. Cambia `version` en `manifest.json` cuando prepares una nueva versión. Usa números, por ejemplo `0.3.4`.
-2. Guarda los cambios en un commit y súbelo a GitHub.
-3. Crea y sube una etiqueta con la misma versión precedida de `v`. Ejemplo para una futura versión `0.3.4`:
+2. Guarda los cambios en un commit y súbelo a la rama principal de GitHub.
+3. Actions genera el ZIP, crea automáticamente la etiqueta `vVERSION` (por ejemplo, `v0.6.2`) y publica la Release con el archivo adjunto en la misma ejecución. No necesitas crear ni subir la etiqueta manualmente.
+4. Abre [Releases](https://github.com/alejmendez/platzi-exam/releases) y descarga el ZIP desde **Assets**. Cada versión debe usar un número nuevo en el manifiesto. Si la etiqueta ya existe en otro commit, Actions la conserva y no publica de nuevo esa versión.
 
-   ```powershell
-   git tag v0.3.4
-   git push origin v0.3.4
-   ```
-
-4. Actions comprueba que etiqueta y manifiesto coincidan, genera el ZIP y crea la Release con el archivo adjunto. Si no coinciden, falla sin publicar una Release.
-5. Abre [Releases](https://github.com/alejmendez/platzi-exam/releases) y descarga el ZIP desde **Assets**. Cada versión debe usar un tag nuevo; no reutilices una etiqueta ya publicada.
+También puedes ejecutar el flujo manualmente desde la rama principal. Si falla la publicación después de crear la etiqueta, reintenta la ejecución del mismo commit. Las etiquetas manuales `v*` siguen admitidas: deben coincidir con el manifiesto. Los pushes a otras ramas solo generan el artifact, sin crear etiquetas ni Releases.
 
 Los archivos del flujo deben estar guardados y subidos a GitHub para que la automatización funcione. Si Actions está desactivado en el repositorio, actívalo en su pestaña **Actions**. No se publica nada en Chrome Web Store ni se actualizan automáticamente las instalaciones de Chrome.
 
